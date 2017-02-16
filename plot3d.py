@@ -33,6 +33,8 @@ class Plotter:
         self.model = DataModel()
         self.scale_defl, self.scale_range = 0.0, 0.0
         self.plot = None
+        self.target = None
+        self.rotation = 0
 
     def plot_av(self):
         # TODO: plot AVs based on actual az and el (not just first indexed) and by only the comps that are in the
@@ -80,10 +82,21 @@ class Plotter:
             # cyl_actor.position = [cx, (self.z1[i] + cz) / 2.0 + 0.01, cy]
         else:
             polys = numpy.array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) / 4)])
-            target = tvtk.PolyData(points=numpy.array(model.surfaces), polys=polys)
-            surf = mlab.pipeline.surface(target, name='target', figure=fig)
-            surf.actor.property.representation = 'wireframe'
-            surf.actor.property.color = (0, 0, 0)
+            poly_obj = tvtk.PolyData(points=model.surfaces, polys=polys)
+            self.target = mlab.pipeline.surface(poly_obj, name='target', figure=fig)
+            self.target.actor.property.representation = 'wireframe'
+            self.target.actor.property.color = (0, 0, 0)
+
+            cyl = tvtk.CylinderSource(center=model.tgt_center, radius=model.swept_volume_radius,
+                                      height=model.srf_max_z + .5,  # slight fudge factor to enclose all surfaces
+                                      resolution=50, capping=True)
+            cyl_mapper = tvtk.PolyDataMapper(input_connection=cyl.output_port)
+            p = tvtk.Property(opacity=0.65, color=(0.6745, 0.196, 0.3882))  # color is gypsy pink, desired by JJS
+            cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p, position=(0, 0, -model.tgt_center[1]))
+            t = tvtk.Transform()
+            t.rotate_x(90.0)
+            cyl_actor.user_transform = t
+            fig.scene.add_actor(cyl_actor)
 
     def plot_matrix_file(self):
         model = self.model
@@ -202,3 +215,6 @@ class Plotter:
         # picker = figure.on_mouse_pick(self.pick_callback)
         # picker.tolerance = 0.01 # Decrease the tolerance, so that we can more easily select a precise point
         mlab.view(azimuth=-90, elevation=30, distance=250, focalpoint=(0, 0, 29), figure=mlab.gcf())
+
+
+

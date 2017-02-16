@@ -1,7 +1,7 @@
 from os.path import exists
 from parselib import AV, Surfaces, Output, Matrix, Kill
+import numpy as np
 import util
-from numpy import ndarray
 
 
 class DataModel(object):
@@ -45,6 +45,8 @@ class DataModel(object):
         self.kill_id = None
         self.kill_lines = None
         self.last_node = None
+        self.tgt_center = None
+        self.swept_volume_radius = None
 
     def read(self, out_file):
         av_file, srf_file, mtx_file, kill_file = Output(self).read(out_file)
@@ -64,15 +66,23 @@ class DataModel(object):
         Returns None
         -----------
         """
-        self.surfaces = util.apply_surface_rotation(self.surfaces, 0.0, azimuth)
+        surfaces = util.apply_surface_rotation(self.surfaces, 0.0, azimuth)
+        self.tgt_center = util.geometric_center(surfaces)
+        self.surfaces = np.array(surfaces)
+        surface_points = [(s[0], s[1]) for s in self.surfaces]
+        tgt_center_points = [(self.tgt_center[0], self.tgt_center[1]) for _ in self.surfaces]
+        self.swept_volume_radius = max(util.distance_between(surface_points, tgt_center_points))
 
     def transform_matrix(self):
+        # here I apply matrix offset to the gridline coordinates. Otherwise, I would have to apply the offset
+        # to the target/obstacle surfaces, AVs, blast volumes, etc.
         self.gridlines_range = util.apply_list_offset(self.gridlines_range, -self.offset_range)
-        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, self.offset_defl)
+        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, -self.offset_defl)
         self.gridlines_range_mid = util.midpoints(self.gridlines_range)
         self.gridlines_defl_mid = util.midpoints(self.gridlines_defl)
-        self.cell_size_range = util.distance_between(self.gridlines_range)
-        self.cell_size_defl = util.distance_between(self.gridlines_defl)
+        self.cell_size_range = util.measure_between(self.gridlines_range)
+        self.cell_size_defl = util.measure_between(self.gridlines_defl)
+        self.pks = np.clip(self.pks, 0.0, 1.0)  # get rid of floating point noise that can cause Pk values > 1.0
 
     def transform_blast_volumes(self):
         pass
@@ -125,4 +135,3 @@ class DataModel(object):
         # first item in deltas (smallest delta after sorting) and the second item in the pair (index)
         self.az_idx = az_delta_idx_pairs[0][1]
         self.el_idx = el_delta_idx_pairs[0][1]
-

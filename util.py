@@ -62,7 +62,18 @@ def delta(vec, elem):
     return [(abs(elem-item), i) for i, item in enumerate(vec)]
 
 
-def distance_between(vec):
+def distance_between(vec1, vec2):
+    """
+    :param vec1: list of (x1,y1,z1) values
+    :param vec2: list of (x2,y2,z2) values
+    :return: list of (abs(x1-x2), abs(y1-y2), abs(z1-z2)) values
+    """
+    if len(vec1) != len(vec2):
+        raise IndexError("vec1 and vec2 don't have the same number of elements")
+    return [math.hypot(abs(vec1[i][0] - vec2[i][0]), abs(vec1[i][1] - vec2[i][1])) for i, _ in enumerate(vec1)]
+
+
+def measure_between(vec):
     """
     :param vec: list of N coordinates
     :return: list of N-1 distances between all pairwise N coordinates
@@ -80,19 +91,18 @@ def midpoints(vec):
 
 def geometric_center(surfaces):
     """
-    :param surfaces: list of 4 (X, Y, Z) points for a quadrilateral
+    :param surfaces: list of (X, Y, Z) points for a quadrilateral
     :return: X, Y, Z geometric center of all surfaces
     """
     min_x, min_y, min_z = sys.maxint, sys.maxint, sys.maxint
     max_x, max_y, max_z = -sys.maxint, -sys.maxint, -sys.maxint
-    for srf in surfaces:
-        for x, y, z in srf:
-            max_x = max(x, max_x)
-            min_x = min(x, min_x)
-            max_y = max(y, max_y)
-            min_y = min(y, min_y)
-            max_z = max(z, max_z)
-            min_z = min(z, min_z)
+    for x, y, z in surfaces:
+        max_x = max(x, max_x)
+        min_x = min(x, min_x)
+        max_y = max(y, max_y)
+        min_y = min(y, min_y)
+        max_z = max(z, max_z)
+        min_z = min(z, min_z)
     return (max_x - min_x) / 2.0, (max_y - min_y) / 2.0, (max_z - min_z) / 2.0
 
 
