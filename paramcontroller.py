@@ -102,8 +102,9 @@ class ParamController:
     def onBtnDisplay(self):
         from plot3d import Plotter
         file_prefix = self.getFileMatch()
-        plotter = Plotter(file_prefix, self.dlg)
-        plotter.plot_data(self.model, self.blast_comps[self.dlg.cboBlastVolume.currentText()])
+        blast_kill = self.dlg.cboBlastVolume.currentText()
+        plotter = Plotter(file_prefix + ': ' + blast_kill, self.dlg)
+        plotter.plot_data(self.model, self.blast_comps[blast_kill])
 
     def aboutToQuit(self):
         self.ini_parser.write_ini_file()
