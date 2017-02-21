@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 from os.path import dirname, sep, splitext, basename
+from collections import OrderedDict
 
 
 class AVComp(object):
@@ -59,7 +60,6 @@ class AV(object):
         self.avf.readline()  # skip past fire array
         tokens = self.avf.readline().strip().split()
         model.x_loc, model.y_loc, model.z_loc = float(tokens[0]), float(tokens[1]), float(tokens[2])
-        real_comps = 0
         for i in range(num_comps):
             tokens = self.avf.readline().strip().split(None, 4)
             comp = AVComp(id=int(tokens[0]), x=float(tokens[1]), y=float(tokens[2]), z=float(tokens[3]),
@@ -67,14 +67,13 @@ class AV(object):
             model.comp_list.append(comp)
             if comp.id == 0:
                 continue  # dummy component
-            real_comps += 1
             model.x_avg_loc += comp.x
             model.y_avg_loc += comp.y
-        model.x_avg_loc /= real_comps
-        model.y_avg_loc /= real_comps
         self.avf.readline()  # AV HEADER LINES
         tokens = self.avf.readline().strip().split()
         model.num_tables, model.av_averaging = int(tokens[0]), int(tokens[1])
+        model.x_avg_loc /= model.num_tables
+        model.y_avg_loc /= model.num_tables
         model.num_az, model.azs = self._read_array()
         model.num_el, model.els = self._read_array()
         model.num_vl, model.vls = self._read_array()
@@ -206,7 +205,7 @@ class Output(object):
         model.burst_height = None
         model.attack_az = None
         model.aof = None
-        model.blast_vol = []
+        model.blast_vol = OrderedDict()
         model.av_file = ''
         model.srf_file = ''
 
@@ -240,14 +239,15 @@ class Output(object):
         _, angle_text = line.split(':')
         self.model.aof = float(angle_text.split()[0])
 
+    # noinspection PyUnusedLocal
     def _parse_blast_components(self, line):
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
             if len(tokens) != 6:
                 return
-            self.model.blast_vol.append([int(tokens[0]), float(tokens[1]), float(tokens[2]), float(tokens[3]),
-                                         float(tokens[4]), float(tokens[5])])
+            self.model.blast_vol[int(tokens[0])] = [float(tokens[1]), float(tokens[2]), float(tokens[3]),
+                                                    float(tokens[4]), float(tokens[5])]
             line = self.out.readline().strip()
 
     def _parse_kill_file(self, line):

@@ -1,7 +1,10 @@
 import os
+import re
 from PySide import QtGui
 from textlabel import TextLabel
 from inifile import IniParser
+from datamodel import DataModel
+from collections import OrderedDict
 
 
 class ParamController:
@@ -21,6 +24,10 @@ class ParamController:
         self.ini_parser = IniParser(self.dlg)
         self.ini_parser.dir = start_dir
         self.populateListBox()
+        self.dlg.btnDisplay.setEnabled(False)
+        self.plotter = None
+        self.model = None
+        self.blast_comps = OrderedDict()
 
     def populateListBox(self):
         cases = set((x.rsplit('-', 2)[0].rsplit('_', 2)[0] for x in self.out_files))
@@ -50,10 +57,24 @@ class ParamController:
             lst = [(int(h), h) for h in heights]
             lst = [h for _, h in sorted(lst)]
             self.dlg.cboBurstHeight.addItems(lst)
-        self.dlg.cboBlastVolume.addItems(['M-Kill'])  # TODO: add these from output file parse
+        file_prefix = self.getFileMatch()
+        if not file_prefix:
+            return
+
+        self.update_model(file_prefix)
+        for bid in self.model.blast_vol.keys():
+            for ci, comp in enumerate(self.model.comp_list):
+                if ci == bid - 1:
+                    self.blast_comps[comp.name] = bid
+        if self.blast_comps.items():
+            self.dlg.cboBlastVolume.addItems(self.blast_comps.keys())
+            self.dlg.cboBlastVolume.setEnabled(True)
+        else:
+            self.dlg.cboBlastVolume.setEnabled(False)
         self.dlg.cboPkSurface.addItems(['Matrix'])
 
     def onBtnChoose(self):
+        # noinspection PyTypeChecker
         d = QtGui.QFileDialog.getExistingDirectory(None, 'Open Directory', self.start_dir,
                                                    QtGui.QFileDialog.ShowDirsOnly |
                                                    QtGui.QFileDialog.DontResolveSymlinks)
@@ -64,28 +85,43 @@ class ParamController:
             self.out_files = [os.path.splitext(x)[0] for x in os.listdir(d) if x.endswith('.out')]
             self.populateListBox()
 
+    # noinspection PyUnusedLocal
     def onLstCase_ItemClicked(self, item):
         self.populateComboBoxes()
         self.ini_parser.write_ini_file()
+        self.dlg.btnDisplay.setEnabled(True)
 
+    # noinspection PyUnusedLocal
     def onDialogChanged(self, idx):
+        file_prefix = self.getFileMatch()
+        if not file_prefix:
+            return
+        self.update_model(file_prefix)
         self.ini_parser.write_ini_file()
 
     def onBtnDisplay(self):
         from plot3d import Plotter
-        case = self.ini_parser.case
-        term_conds = '_' + self.ini_parser.aof + '-' + self.ini_parser.term_vel + '-' + self.ini_parser.burst_height
-        file_lst = [f for f in self.out_files if f.startswith(case) and f.endswith(term_conds)]
-        if len(file_lst) == 0:
-            QtGui.QMessageBox.critical(self.dlg, 'Error', 'The output filename is not found.', QtGui.QMessageBox.Close)
-            return
-        if len(file_lst) > 1:
-            QtGui.QMessageBox.critical(self.dlg, 'Error', 'More than one filename matches the current selection. ' +
-                                                          'Cannot resolve the correct filename.',
-                                       QtGui.QMessageBox.Close)
-            return
-        plotter = Plotter(case + term_conds, self.dlg)
-        plotter.initialize(self.ini_parser.dir + os.sep + file_lst[0] + '.out')
+        file_prefix = self.getFileMatch()
+        plotter = Plotter(file_prefix, self.dlg)
+        plotter.plot_data(self.model, self.blast_comps[self.dlg.cboBlastVolume.currentText()])
 
     def aboutToQuit(self):
         self.ini_parser.write_ini_file()
+
+    def getFileMatch(self):
+        dlg = self.dlg
+        prefix = dlg.lstCase.currentItem().text() + '_'
+        suffix = '_' + dlg.cboAOF.currentText() + '-' + dlg.cboTermVel.currentText()
+        suffix += '-' + dlg.cboBurstHeight.currentText()
+        file_lst = [f for f in self.out_files if re.search('^' + prefix + '\d+' + suffix + '$', f)]
+        return file_lst[0] if len(file_lst) == 1 else ''
+
+    def update_model(self, file_prefix):
+        try:
+            self.model = DataModel()
+            self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')
+        except IOError, e:
+            QtGui.QMessageBox.warning(QtGui.QWidget(), "File error",
+                                      "Cannot find %s in the directory you chose." % e.filename,
+                                      QtGui.QMessageBox.StandardButton.Ok)
+

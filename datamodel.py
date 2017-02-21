@@ -48,27 +48,24 @@ class DataModel(object):
         self.tgt_center = None
         self.swept_volume_radius = None
 
-    def read(self, out_file):
+    def read_and_transform_all_files(self, out_file):
         av_file, srf_file, mtx_file, kill_file = Output(self).read(out_file)
         AV(self).read(av_file)
         Surfaces(self).read(srf_file)
         Kill(self).read(kill_file)
         if exists(mtx_file):
             Matrix(self).read(mtx_file)
+            self.transform_matrix()
+        self.transform_surfaces()
+        self.transform_blast_volumes()
+        self.find_closest_az_and_el_indices()
 
-    def transform_surfaces(self, azimuth):
+    def transform_surfaces(self):
         """
-        Perform surface rotation.
-
-        Parameters
-        ----------
-        azimuth: attack azimuth angle (in degrees)
-        Returns None
-        -----------
+        Calculate a swept volume radius and geometric center for the target surfaces.
         """
-        surfaces = util.apply_surface_rotation(self.surfaces, 0.0, azimuth)
-        self.tgt_center = util.geometric_center(surfaces)
-        self.surfaces = np.array(surfaces)
+        self.tgt_center = util.geometric_center(self.surfaces)
+        self.surfaces = np.array(self.surfaces)
         surface_points = [(s[0], s[1]) for s in self.surfaces]
         tgt_center_points = [(self.tgt_center[0], self.tgt_center[1]) for _ in self.surfaces]
         self.swept_volume_radius = max(util.distance_between(surface_points, tgt_center_points))
@@ -87,11 +84,6 @@ class DataModel(object):
     def transform_blast_volumes(self):
         pass
 
-    def transform_component_centroids(self, aof, azimuth):
-        for c in self.comp_list:
-            # rotate component x, y, z by supplied AOF and azimuth
-            c.x, c.y, c.z = util.rotate_pt_around_yz_axes(c.x, c.y, c.z, aof, azimuth)
-
     def extract_components(self, kill_type, kill_node=None):
         """
         :param kill_type: string with k number (e.g., 'k1' or 'k5') matched against the same type in the kill
@@ -107,7 +99,7 @@ class DataModel(object):
         components = []
         for item in self.kill_lines[type_and_node].items:
             if item.startswith('c'):
-                components.append(item)
+                components.append(int(item[1:]) - 1)
             elif item.startswith('n'):
                 new_kill_type = kill_type.split(',')[0]
                 components.extend(self.extract_components(new_kill_type, item[1:]))
@@ -118,13 +110,15 @@ class DataModel(object):
                 raise ValueError("Unrecognized item %s in kill file for %s" % (item, kill_type))
         return components
 
-    def extract_az_and_el_indices(self):
+    def find_closest_az_and_el_indices(self):
         """
-        set azimuth index and elevation index that will be used to display appropriate AVs/PEs from
+        find and set closest azimuth index and elevation index that will be used to display appropriate AVs/PEs from
          the component AV file.
         :return: None
         """
-        # obtain deltas between all azimuths in the AV file and the chosen attack azimuth
+        # TODO: Include JMAE interpolation code to get AVs to be a true match
+        # Obtain deltas between all azimuths in the AV file and the chosen attack azimuth.
+        # This algorithm still works for azimuth averaged data since there's only one azimuth in the list.
         az_delta_idx_pairs = util.delta(self.azs, self.attack_az)
         az_delta_idx_pairs.sort()  # order by smallest to largest delta
 
