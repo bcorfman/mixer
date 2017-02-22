@@ -126,53 +126,54 @@ class Plotter:
         surf.module_manager.scalar_lut_manager.data_range = array([0., 1.])
         mlab.colorbar(surf, title='Cell Pk', orientation='vertical')
 
-    def plot_blast_volume(self, blast_id):
+    def plot_blast_volume(self):
         model = self.model
-        comp = model.comp_list[blast_id - 1]
         v = mlab.gcf()
         t = tvtk.Transform()
         t.rotate_x(90.0)
-        r1, r2, r3, z1, z2 = model.blast_vol[blast_id]
-        if r1 == 0 or r2 == 0 or z1 == 0:
-            # blast sphere
-            p = tvtk.Property(opacity=0.25, color=(1, 1, 0))
-            sphere = tvtk.SphereSource(center=(0, 0, 0), radius=r3)
-            sphere_mapper = tvtk.PolyDataMapper()
-            configure_input(sphere_mapper, sphere)
-            sphere_actor = tvtk.Actor(mapper=sphere_mapper, property=p)
-            sphere_actor.user_transform = t
-            v.scene.add_actor(sphere_actor)
-            sphere_actor.position = [comp.x, z2 + comp.z, comp.y]  # TODO: check correct sphere rotation
-        else:
-            # double cylinder
-            lower_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r1,
-                                            height=z1, resolution=50, capping=True)
-            cyl_mapper = tvtk.PolyDataMapper()
-            configure_input(cyl_mapper, lower_cyl)
-            p = tvtk.Property(opacity=0.25, color=(1, 1, 0))
-            cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p)
-            cyl_actor.user_transform = t
-            v.scene.add_actor(cyl_actor)
-            # cx, cy, cz = util.rotate_pt_around_yz_axes(comp.x, comp.y, comp.z, 0.0, model.attack_az)
-            cyl_actor.position = [comp.x, (z1 + comp.z) / 2.0 + 0.01, comp.y]
+        for i in model.blast_comps:
+            comp = model.comp_list[i]
+            r1, r2, r3, z1, z2 = model.blast_vol[i]
+            if r1 == 0 or r2 == 0 or z1 == 0:
+                # blast sphere
+                p = tvtk.Property(opacity=0.25, color=(1, 0, 1))
+                sphere = tvtk.SphereSource(center=(0, 0, 0), radius=r3)
+                sphere_mapper = tvtk.PolyDataMapper()
+                configure_input(sphere_mapper, sphere)
+                sphere_actor = tvtk.Actor(mapper=sphere_mapper, property=p)
+                sphere_actor.user_transform = t
+                v.scene.add_actor(sphere_actor)
+                sphere_actor.position = [comp.x, z2 + comp.z, comp.y]  # TODO: check correct sphere rotation
+            else:
+                # double cylinder
+                lower_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r1,
+                                                height=z1, resolution=50, capping=True)
+                cyl_mapper = tvtk.PolyDataMapper()
+                configure_input(cyl_mapper, lower_cyl)
+                p = tvtk.Property(opacity=0.25, color=(1, 0, 1))
+                cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p)
+                cyl_actor.user_transform = t
+                v.scene.add_actor(cyl_actor)
+                # cx, cy, cz = util.rotate_pt_around_yz_axes(comp.x, comp.y, comp.z, 0.0, model.attack_az)
+                cyl_actor.position = [comp.x, (z1 + comp.z) / 2.0 + 0.01, comp.y]
 
-            upper_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r2, height=z2 - z1, resolution=50,
-                                            capping=False)
-            cyl_mapper = tvtk.PolyDataMapper()
-            configure_input(cyl_mapper, upper_cyl)
-            cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p)
-            cyl_actor.user_transform = t
-            v.scene.add_actor(cyl_actor)
-            cyl_actor.position = [comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y]
+                upper_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r2, height=z2 - z1, resolution=50,
+                                                capping=False)
+                cyl_mapper = tvtk.PolyDataMapper()
+                configure_input(cyl_mapper, upper_cyl)
+                cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p)
+                cyl_actor.user_transform = t
+                v.scene.add_actor(cyl_actor)
+                cyl_actor.position = [comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y]
 
-            cap = tvtk.SphereSource(center=(0, 0, 0), radius=r3, start_theta=0, end_theta=180,
-                                    phi_resolution=50)
-            cap_mapper = tvtk.PolyDataMapper()
-            configure_input(cap_mapper, cap)
-            cap_actor = tvtk.Actor(mapper=cap_mapper, property=p)
-            cap_actor.user_transform = t
-            v.scene.add_actor(cap_actor)
-            cap_actor.position = [comp.x, z2 + comp.z, comp.y]
+                cap = tvtk.SphereSource(center=(0, 0, 0), radius=r3, start_theta=0, end_theta=180,
+                                        phi_resolution=50)
+                cap_mapper = tvtk.PolyDataMapper()
+                configure_input(cap_mapper, cap)
+                cap_actor = tvtk.Actor(mapper=cap_mapper, property=p)
+                cap_actor.user_transform = t
+                v.scene.add_actor(cap_actor)
+                cap_actor.position = [comp.x, z2 + comp.z, comp.y]
 
     def plot_munition(self):
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,
@@ -191,7 +192,7 @@ class Plotter:
         mlab.text3d(xloc, yloc, zloc + 6, format_str.format(model.aof, model.attack_az, model.term_vel),
                     color=(1, 1, 1), name='munition-text', figure=fig)
 
-    def plot_data(self, model, blast_id):
+    def plot_data(self, model):
         self.model = model
         scene = mlab.get_engine().new_scene()  # create a new scene window every time
         scene.title = self.title
@@ -200,7 +201,7 @@ class Plotter:
             self.plot_matrix_file()  # matrix can be plotted if it was read in
         self.plot_srf_file()
         if self.model.blast_vol:
-            self.plot_blast_volume(blast_id)  # plot blast volume if blast damage was included in output
+            self.plot_blast_volume()  # plot blast volume if blast damage was included in output
         self.plot_av()
         self.plot_munition()
         # figure = mlab.gcf()

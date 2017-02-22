@@ -13,7 +13,6 @@ class IniParser(object):
         self.aof = None
         self.term_vel = None
         self.burst_height = None
-        self.blast_volume = None
         self.pk_surface = None
         self.parser = SafeConfigParser()
 
@@ -29,7 +28,6 @@ class IniParser(object):
             self.aof = self.parser.get('settings', 'aof')
             self.term_vel = self.parser.get('settings', 'term_vel')
             self.burst_height = self.parser.get('settings', 'burst_height')
-            self.blast_volume = self.parser.get('settings', 'blast_volume')
             self.pk_surface = self.parser.get('settings', 'pk_surface')
         else:
             self.dir = os.path.abspath(os.curdir)
@@ -51,8 +49,6 @@ class IniParser(object):
         self.parser.set('settings', 'term_vel', self.term_vel)
         self.burst_height = self.dlg.cboBurstHeight.currentText() or ''
         self.parser.set('settings', 'burst_height', self.burst_height)
-        self.blast_volume = self.dlg.cboBlastVolume.currentText() or ''
-        self.parser.set('settings', 'blast_volume', self.blast_volume)
         self.pk_surface = self.dlg.cboPkSurface.currentText() or ''
         self.parser.set('settings', 'pk_surface', self.pk_surface)
         with open(ini_path, 'w') as f:

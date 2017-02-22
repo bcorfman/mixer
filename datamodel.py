@@ -47,6 +47,8 @@ class DataModel(object):
         self.last_node = None
         self.tgt_center = None
         self.swept_volume_radius = None
+        self.mtx_kill_id = None
+        self.blast_comps = None
 
     def read_and_transform_all_files(self, out_file):
         av_file, srf_file, mtx_file, kill_file = Output(self).read(out_file)
@@ -82,7 +84,8 @@ class DataModel(object):
         self.pks = np.clip(self.pks, 0.0, 1.0)  # get rid of floating point noise that can cause Pk values > 1.0
 
     def transform_blast_volumes(self):
-        pass
+        kill_comps = self.extract_components(self.mtx_kill_id)
+        self.blast_comps = set(kill_comps).intersection(self.blast_vol.keys())
 
     def extract_components(self, kill_type, kill_node=None):
         """

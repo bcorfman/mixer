@@ -246,8 +246,8 @@ class Output(object):
             tokens = line.split()
             if len(tokens) != 6:
                 return
-            self.model.blast_vol[int(tokens[0])] = [float(tokens[1]), float(tokens[2]), float(tokens[3]),
-                                                    float(tokens[4]), float(tokens[5])]
+            self.model.blast_vol[int(tokens[0]) - 1] = [float(tokens[1]), float(tokens[2]), float(tokens[3]),
+                                                        float(tokens[4]), float(tokens[5])]
             line = self.out.readline().strip()
 
     def _parse_kill_file(self, line):
@@ -398,9 +398,14 @@ class Matrix(object):
                 line = self.mtx.readline()
                 if not line:
                     raise IOError('Error in matrix file parsing')
-                elif line.startswith('<MATRIX DIMENSIONS '):
+                elif line.startswith('<MATRIX HEADER>'):
                     break
             line = self.mtx.readline().strip()
+            tokens = line.split(':')
+            model.mtx_kill_id = tokens[1].split()[0].lower()  # the kill ID is the first item after the colon
+            self.mtx.readline()  # <MATRIX DETAILS> line
+            self.mtx.readline()  # <MATRIX DIMENSIONS> line
+            line = self.mtx.readline()
             tokens = line.split(',')
             model.cls_range, model.cls_defl = int(tokens[0]), int(tokens[1])
             self.mtx.readline().strip()  # skip <matrix offset coordinate> header

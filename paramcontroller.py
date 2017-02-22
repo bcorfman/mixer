@@ -4,7 +4,6 @@ from PySide import QtGui
 from textlabel import TextLabel
 from inifile import IniParser
 from datamodel import DataModel
-from collections import OrderedDict
 
 
 class ParamController:
@@ -27,7 +26,6 @@ class ParamController:
         self.dlg.btnDisplay.setEnabled(False)
         self.plotter = None
         self.model = None
-        self.blast_comps = OrderedDict()
 
     def populateListBox(self):
         cases = set((x.rsplit('-', 2)[0].rsplit('_', 2)[0] for x in self.out_files))
@@ -62,15 +60,6 @@ class ParamController:
             return
 
         self.update_model(file_prefix)
-        for bid in self.model.blast_vol.keys():
-            for ci, comp in enumerate(self.model.comp_list):
-                if ci == bid - 1:
-                    self.blast_comps[comp.name] = bid
-        if self.blast_comps.items():
-            self.dlg.cboBlastVolume.addItems(self.blast_comps.keys())
-            self.dlg.cboBlastVolume.setEnabled(True)
-        else:
-            self.dlg.cboBlastVolume.setEnabled(False)
         self.dlg.cboPkSurface.addItems(['Matrix'])
 
     def onBtnChoose(self):
@@ -102,9 +91,8 @@ class ParamController:
     def onBtnDisplay(self):
         from plot3d import Plotter
         file_prefix = self.getFileMatch()
-        blast_kill = self.dlg.cboBlastVolume.currentText()
-        plotter = Plotter(file_prefix + ': ' + blast_kill, self.dlg)
-        plotter.plot_data(self.model, self.blast_comps[blast_kill])
+        plotter = Plotter(file_prefix, self.dlg)
+        plotter.plot_data(self.model)
 
     def aboutToQuit(self):
         self.ini_parser.write_ini_file()
