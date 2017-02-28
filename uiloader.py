@@ -2,6 +2,7 @@ __author__ = 'brandon.corfman'
 
 import os
 from PySide import QtCore, QtUiTools
+from PySide import QtXml
 
 
 def loadUiWidget(uifilename, parent=None):

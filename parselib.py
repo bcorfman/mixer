@@ -1,6 +1,6 @@
 import sys
 import numpy as np
-from os.path import dirname, sep, splitext, basename
+from os.path import dirname, sep, splitext, basename, exists
 from collections import OrderedDict
 
 
@@ -210,8 +210,7 @@ class Output(object):
         model.srf_file = ''
 
     def _parse_av_file(self, line):
-        _, fn = line.split(':', 1)
-        self.model.av_file = fn.strip()
+        self.model.av_file = self._parse_filename(line, "Couldn't find AV file")
 
     def _parse_term_vel(self, line):
         _, vel_text = line.split(':', 1)
@@ -222,8 +221,7 @@ class Output(object):
         self.model.burst_height = float(bh.split()[0])
 
     def _parse_srf_file(self, line):
-        _, fn = line.split(':', 1)
-        self.model.srf_file = fn.strip()
+        self.model.srf_file = self._parse_filename(line, "Couldn't find surface file")
 
     def _parse_specific_attack_az(self, line):
         self.model.az_averaging = False
@@ -251,14 +249,32 @@ class Output(object):
             line = self.out.readline().strip()
 
     def _parse_kill_file(self, line):
-        _, kill_file = line.split(':', 1)
-        self.model.kill_file = kill_file.strip()
+        self.model.kill_file = self._parse_filename(line, "Couldn't find kill definition file")
 
     def _parse_kill_description(self, line):
         _, kill_desc = line.split(':')
         if self.model.kill_desc:
             raise ValueError('Cannot read multiple matrices in a single .mtx file')
         self.model.kill_desc = kill_desc.strip()
+
+    # noinspection PyUnusedLocal
+    def _parse_filename(self, line, error_msg):
+        _, fn = line.split(':', 1)
+        fn = fn.strip()
+        if fn != "":
+            if exists(fn):
+                return fn
+            else:
+                raise IOError(error_msg)
+
+        # continue reading until we find a filename (we hope)
+        while True:
+            line = self.out.readline().strip()
+            if line != '':
+                if exists(line):
+                    return line
+                else:
+                    raise IOError("Couldn't find surface file.")
 
     def read(self, out_file):
         """
@@ -340,7 +356,7 @@ class Kill(object):
                 description = tokens[3].strip()
                 if description == model.kill_desc:
                     model.kill_id = tokens[0].lower()
-            if not model.kill_id:
+            if not model.kill_id and model.kill_desc:
                 raise ValueError('Did not find kill ID match between kill definition file and output file.')
             # now parse kill lines
             while True:

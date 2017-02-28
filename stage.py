@@ -10,8 +10,16 @@ if __name__ == '__main__':
     try:
         app = QtGui.QApplication(sys.argv)
     except RuntimeError:
-        app = QtCore.QCoreApplication.instance()
+        app = QtCore.QCoreApplication.instance(sys.argv)
     param_dlg = loadUiWidget('paramdlg.ui')
+    geo = param_dlg.frameGeometry()
+    height, width = geo.height(), geo.width()
+    x, y = geo.x(), geo.y()
+    desktop = app.desktop()
+    desk_rect = desktop.screenGeometry(desktop.screenNumber(QtGui.QCursor.pos()))
+    screen_height, screen_width = desk_rect.height(), desk_rect.width()
+    param_dlg.setGeometry((screen_width - width) / 2 + desk_rect.left(),
+                          (screen_height - height) / 2 + desk_rect.top(), width, height)
     ini_parser = IniParser(param_dlg)
     ini_parser.read_ini_file()
     param_dlg.setGeometry(ini_parser.x, ini_parser.y, ini_parser.width, ini_parser.height)

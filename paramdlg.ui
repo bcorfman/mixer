@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>552</width>
-    <height>360</height>
+    <height>311</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>552</width>
-    <height>261</height>
+    <height>255</height>
    </size>
   </property>
   <property name="maximumSize">
@@ -25,8 +25,81 @@
   <property name="windowTitle">
    <string>Stage: the JMAE 3D visualizer</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>C:/Users/brandon.corfman/Pictures/2000px-Crystal_Clear_app_3d.svg.png</normaloff>C:/Users/brandon.corfman/Pictures/2000px-Crystal_Clear_app_3d.svg.png</iconset>
+  </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QGridLayout" name="gridLayout_4">
+   <layout class="QGridLayout" name="gridLayout_2">
+    <item row="0" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QFrame" name="frame">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>532</width>
+          <height>25</height>
+         </size>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::Box</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Sunken</enum>
+        </property>
+        <property name="lineWidth">
+         <number>1</number>
+        </property>
+        <widget class="QWidget" name="horizontalLayoutWidget">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>106</width>
+           <height>32</height>
+          </rect>
+         </property>
+         <layout class="QHBoxLayout" name="lblLayout">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetDefaultConstraint</enum>
+          </property>
+          <property name="leftMargin">
+           <number>5</number>
+          </property>
+          <property name="rightMargin">
+           <number>5</number>
+          </property>
+          <item>
+           <widget class="QPushButton" name="btnChoose">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::TabFocus</enum>
+            </property>
+            <property name="text">
+             <string>Choose ...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+     </layout>
+    </item>
     <item row="1" column="0">
      <layout class="QGridLayout" name="gridLayout_3">
       <item row="0" column="1">
@@ -34,15 +107,15 @@
         <property name="rightMargin">
          <number>10</number>
         </property>
-        <item row="1" column="0">
-         <widget class="QListWidget" name="lstCase"/>
-        </item>
         <item row="0" column="0">
          <widget class="QLabel" name="lblCase">
           <property name="text">
            <string>Case:</string>
           </property>
          </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QListWidget" name="lstCase"/>
         </item>
        </layout>
       </item>
@@ -76,7 +149,7 @@
         <item row="1" column="1">
          <widget class="QComboBox" name="cboAOF">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -99,7 +172,7 @@
         <item row="2" column="1">
          <widget class="QComboBox" name="cboTermVel">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -156,10 +229,10 @@
       </item>
      </layout>
     </item>
-    <item row="0" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <item row="2" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
       <item>
-       <widget class="QFrame" name="frame">
+       <widget class="QFrame" name="frame_2">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
           <horstretch>0</horstretch>
@@ -184,27 +257,27 @@
         <property name="lineWidth">
          <number>1</number>
         </property>
-        <widget class="QWidget" name="horizontalLayoutWidget">
+        <widget class="QWidget" name="horizontalLayoutWidget_2">
          <property name="geometry">
           <rect>
-           <x>0</x>
-           <y>0</y>
-           <width>106</width>
+           <x>438</x>
+           <y>-4</y>
+           <width>111</width>
            <height>32</height>
           </rect>
          </property>
-         <layout class="QHBoxLayout" name="lblLayout">
+         <layout class="QHBoxLayout" name="lblLayout_3" stretch="0">
           <property name="sizeConstraint">
-           <enum>QLayout::SetNoConstraint</enum>
+           <enum>QLayout::SetDefaultConstraint</enum>
           </property>
           <property name="leftMargin">
            <number>5</number>
           </property>
           <property name="rightMargin">
-           <number>5</number>
+           <number>6</number>
           </property>
           <item>
-           <widget class="QPushButton" name="btnChoose">
+           <widget class="QPushButton" name="btnDisplay">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -215,7 +288,7 @@
              <enum>Qt::TabFocus</enum>
             </property>
             <property name="text">
-             <string>Choose ...</string>
+             <string>Display</string>
             </property>
            </widget>
           </item>
@@ -225,60 +298,10 @@
       </item>
      </layout>
     </item>
-    <item row="2" column="0">
-     <layout class="QGridLayout" name="gridLayout_6">
-      <property name="rightMargin">
-       <number>5</number>
-      </property>
-      <item row="0" column="0">
-       <widget class="QFrame" name="frame_2">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>25</height>
-         </size>
-        </property>
-        <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <widget class="QPushButton" name="btnDisplay">
-         <property name="geometry">
-          <rect>
-           <x>440</x>
-           <y>-3</y>
-           <width>88</width>
-           <height>36</height>
-          </rect>
-         </property>
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::TabFocus</enum>
-         </property>
-         <property name="text">
-          <string>Display</string>
-         </property>
-         <property name="default">
-          <bool>false</bool>
-         </property>
-         <property name="flat">
-          <bool>false</bool>
-         </property>
-        </widget>
-       </widget>
-      </item>
-     </layout>
-    </item>
    </layout>
    <zorder></zorder>
    <zorder></zorder>
+   <zorder>layoutWidget</zorder>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

@@ -94,6 +94,8 @@ class DataModel(object):
         :param kill_node: node number in string format
         :return: list of components for that kill
         """
+        if not kill_type:
+            return []
         if kill_node is None:
             kill_node = self.last_node[kill_type]
         type_and_node = kill_type + ',' + kill_node

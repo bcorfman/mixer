@@ -21,6 +21,8 @@ class IniParser(object):
         if os.path.exists(ini_path):
             self.parser.read(ini_path)
             self.dir = self.parser.get('settings', 'directory')
+            if not os.path.exists(self.dir):
+                self.dir = os.path.abspath(os.curdir)
             geometry = self.parser.get('settings', 'geometry').split(',')
             self.x, self.y = int(geometry[0]), int(geometry[1])
             self.width, self.height = int(geometry[2]), int(geometry[3])

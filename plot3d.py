@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from numpy import array, full
-from PySide import QtGui
 import util
 from tvtk.api import tvtk
 from tvtk.common import configure_input
 from mayavi import mlab
+from const import GYPSY_PINK
 
 
 """
@@ -49,6 +49,7 @@ class Plotter:
             # get the average masses and velocities for the selected azimuth and elevation
             avg_av, avg_pe = 0.0, 0.0
             for ims, _ in enumerate(model.mss):
+                # noinspection PyAssignmentToLoopOrWithParameter
                 for ivl, _ in enumerate(model.vls):
                     avg_av += model.avs[i][iaz][iel][ims][ivl]
                     if model.az_averaging:
@@ -75,8 +76,9 @@ class Plotter:
                                       height=model.srf_max_z + .5,  # slight fudge factor to enclose all top surfaces
                                       resolution=50, capping=True)
             cyl_mapper = tvtk.PolyDataMapper(input_connection=cyl.output_port)
-            p = tvtk.Property(opacity=0.65, color=(0.6745, 0.196, 0.3882))  # gypsy pink color, coveted by JJS
-            cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p, position=(0, 0, -model.tgt_center[1]))
+            p = tvtk.Property(opacity=0.65, color=GYPSY_PINK)
+            cx, cy, cz = model.tgt_center[0], model.tgt_center[2] / 2, -model.tgt_center[1]
+            cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p, position=(cx, cy, cz))
             t = tvtk.Transform()
             t.rotate_x(90.0)
             cyl_actor.user_transform = t
@@ -125,6 +127,12 @@ class Plotter:
         surf.module_manager.scalar_lut_manager.use_default_range = False
         surf.module_manager.scalar_lut_manager.data_range = array([0., 1.])
         mlab.colorbar(surf, title='Cell Pk', orientation='vertical')
+        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 140,
+                    str('Matrix range: (%5.1f, %5.1f)' % (model.gridlines_range[0], model.gridlines_range[-1])),
+                    scale=(20, 20, 20), name='Matrix range coordinates')
+        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 100,
+                    str('Matrix defl: (%5.1f, %5.1f)' % (model.gridlines_defl[0], model.gridlines_defl[-1])),
+                    scale=(20, 20, 20), name='Matrix deflection coordinates')
 
     def plot_blast_volume(self):
         model = self.model
@@ -136,7 +144,7 @@ class Plotter:
             r1, r2, r3, z1, z2 = model.blast_vol[i]
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
-                p = tvtk.Property(opacity=0.25, color=(1, 0, 1))
+                p = tvtk.Property(opacity=0.25, color=(1, 1, 0))
                 sphere = tvtk.SphereSource(center=(0, 0, 0), radius=r3)
                 sphere_mapper = tvtk.PolyDataMapper()
                 configure_input(sphere_mapper, sphere)
@@ -150,7 +158,7 @@ class Plotter:
                                                 height=z1, resolution=50, capping=True)
                 cyl_mapper = tvtk.PolyDataMapper()
                 configure_input(cyl_mapper, lower_cyl)
-                p = tvtk.Property(opacity=0.25, color=(1, 0, 1))
+                p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
                 cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p)
                 cyl_actor.user_transform = t
                 v.scene.add_actor(cyl_actor)
@@ -184,13 +192,13 @@ class Plotter:
         # rotate unit vector into position of munition attack_az and aof
         xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, model.attack_az)
         # position arrow position outside of target, using both maximum radius and matrix offset.
-        arrow_distance = model.swept_volume_radius + 5  # fudge to put arrow just outside radius
+        arrow_distance = model.swept_volume_radius + 10  # fudge to put arrow just outside radius
         xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance, 0.0, 0.0, model.aof, model.attack_az)
         mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False, line_width=15,
                       scale_factor=15, name='munition', mode='arrow', figure=fig)
-        format_str = '{0}° AOF\n{1}° attack azimuth\n{2} ft/s terminal velocity'
+        format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity'
         mlab.text3d(xloc, yloc, zloc + 6, format_str.format(model.aof, model.attack_az, model.term_vel),
-                    color=(1, 1, 1), name='munition-text', figure=fig)
+                    color=(1, 1, 1), scale=(2, 2, 2), name='munition-text', figure=fig)
 
     def plot_data(self, model):
         self.model = model
@@ -208,4 +216,4 @@ class Plotter:
         # picker = figure.on_mouse_pick(self.pick_callback)
         # picker.tolerance = 0.01 # Decrease the tolerance, so that we can more easily select a precise point
         scene.disable_render = False  # reinstate display
-        mlab.view(azimuth=0, elevation=30, distance=250, focalpoint=(0, 0, 29), figure=mlab.gcf())
+        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50), figure=mlab.gcf())  # focalpoint=(0, 0, 29), figure=mlab.gcf())
