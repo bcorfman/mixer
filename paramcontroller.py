@@ -22,12 +22,12 @@ class ParamController:
         self.dlg.frame.setLayout(self.dlg.lblLayout)
         self.ini_parser = IniParser(self.dlg)
         self.ini_parser.dir = start_dir
-        self.populateListBox()
+        self._populate_list_box()
         self.dlg.btnDisplay.setEnabled(False)
         self.plotter = None
         self.model = None
 
-    def populateListBox(self):
+    def _populate_list_box(self):
         cases = set((x.rsplit('-', 2)[0].rsplit('_', 2)[0] for x in self.out_files))
         self.dlg.lstCase.clear()
         if cases:
@@ -36,7 +36,7 @@ class ParamController:
         self.dlg.cboTermVel.clear()
         self.dlg.cboBurstHeight.clear()
 
-    def populateComboBoxes(self, case_prefix):
+    def _populate_combo_boxes(self, case_prefix):
         aofs = set((x.rsplit('-', 2)[0].rsplit('_', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
         vels = set((x.rsplit('-', 2)[1] for x in self.out_files if x.startswith(case_prefix)))
         heights = set((x.rsplit('-', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
@@ -57,12 +57,12 @@ class ParamController:
             self.dlg.cboBurstHeight.addItems(lst)
         self.dlg.cboPkSurface.addItems(['Matrix'])
 
-        file_prefix = self.getFileMatch()
+        file_prefix = self._get_file_match()
         if not file_prefix:
             return
-        self.update_model(file_prefix)
+        self._update_model(file_prefix)
 
-    def onBtnChoose(self):
+    def on_btn_choose(self):
         # noinspection PyTypeChecker
         d = QtGui.QFileDialog.getExistingDirectory(None, 'Open Directory', self.start_dir,
                                                    QtGui.QFileDialog.ShowDirsOnly |
@@ -72,40 +72,45 @@ class ParamController:
             self.ini_parser.dir = d
             self.ini_parser.write_ini_file()
             self.out_files = [os.path.splitext(x)[0] for x in os.listdir(d) if x.endswith('.out')]
-            self.populateListBox()
+            self._populate_list_box()
 
     # noinspection PyUnusedLocal
-    def onLstCase_ItemClicked(self, item):
-        self.populateComboBoxes(item.text())
+    def _on_case_item_clicked(self, item):
+        self._populate_combo_boxes(item.text())
         self.ini_parser.write_ini_file()
         self.dlg.btnDisplay.setEnabled(True)
 
     # noinspection PyUnusedLocal
-    def onDialogChanged(self, idx):
-        file_prefix = self.getFileMatch()
+    def _on_dialog_changed(self, idx):
+        file_prefix = self._get_file_match()
         if not file_prefix:
             return
-        self.update_model(file_prefix)
+        self._update_model(file_prefix)
         self.ini_parser.write_ini_file()
 
-    def onBtnDisplay(self):
+    def _on_btn_display(self):
         from plot3d import Plotter
-        file_prefix = self.getFileMatch()
+        file_prefix = self._get_file_match()
         plotter = Plotter(file_prefix, self.dlg)
         plotter.plot_data(self.model)
 
     def aboutToQuit(self):
         self.ini_parser.write_ini_file()
 
-    def getFileMatch(self):
+    def _get_file_match(self):
         dlg = self.dlg
-        prefix = dlg.lstCase.currentItem().text() + '_'
-        suffix = '_' + dlg.cboAOF.currentText() + '-' + dlg.cboTermVel.currentText()
-        suffix += '-' + dlg.cboBurstHeight.currentText()
+        case = dlg.lstCase.currentItem().text()
+        aof = dlg.cboAOF.currentText()
+        term_vel = dlg.cboTermVel.currentText()
+        burst_height = dlg.cboBurstHeight.currentText()
+        if not case or not aof or not term_vel or not burst_height:
+            return ''
+        prefix = case + '_'
+        suffix = '_' + aof + '-' + term_vel + '-' + burst_height
         file_lst = [f for f in self.out_files if re.search('^' + prefix + '\d+' + suffix + '$', f)]
         return file_lst[0] if len(file_lst) == 1 else ''
 
-    def update_model(self, file_prefix):
+    def _update_model(self, file_prefix):
         try:
             self.model = DataModel()
             self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')

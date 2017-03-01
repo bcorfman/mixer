@@ -94,18 +94,9 @@ class Plotter:
         rgrid.cell_data.scalars.name = 'pks'
         rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
-        # Extract a plane from the grid for display. This geometry filter may not be needed,
-        # but it doesn't hurt anything.
-        #plane = tvtk.RectilinearGridGeometryFilter(extent=(0, x_dim - 1, 0, y_dim - 1, 0, z_dim - 1))
-        #configure_input(plane, rgrid)
-        #rgrid_mapper = tvtk.PolyDataMapper(input_connection=plane.output_port)
-
         t = tvtk.Transform()
         t.rotate_z(180.0)  # matrix is reversed in VTK coordinate system
         p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
-        #wire_actor = tvtk.Actor(mapper=rgrid_mapper, property=p)
-        #wire_actor.user_transform = t
-        #figure.scene.add_actor(wire_actor)  # add rectilinear grid to the scene
 
         # this method puts the surface in the Mayavi pipeline so the user can change it.
         surf = mlab.pipeline.surface(rgrid, name='matrix')
@@ -128,7 +119,6 @@ class Plotter:
 
     def plot_blast_volume(self):
         model = self.model
-        v = mlab.gcf()
         t = tvtk.Transform()
         t.rotate_x(90.0)
         for i in model.blast_comps:
@@ -136,50 +126,30 @@ class Plotter:
             r1, r2, r3, z1, z2 = model.blast_vol[i]
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
-                p = tvtk.Property(opacity=0.25, color=(1, 1, 0))
-                sphere = tvtk.SphereSource(center=(0, 0, 0), radius=r3)
-                sphere_mapper = tvtk.PolyDataMapper()
-                configure_input(sphere_mapper, sphere)
-                sphere_actor = tvtk.Actor(mapper=sphere_mapper, property=p)
-                sphere_actor.user_transform = t
-                v.scene.add_actor(sphere_actor)
-                sphere_actor.position = [comp.x, z2 + comp.z, comp.y]
+                p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
+                sphere = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, phi_resolution=50,
+                                           theta_resolution=50)
+                surf = mlab.pipeline.surface(sphere.output, name='blast sphere %s' % comp.name)
+                surf.actor.actor.property = p
+                surf.actor.actor.user_transform = t
             else:
                 # double cylinder
-                lower_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r1,
+                lower_cyl = tvtk.CylinderSource(center=(comp.x, (z1 + comp.z) / 2.0 + 0.01, comp.y), radius=r1,
                                                 height=z1, resolution=50, capping=True)
-                cyl_mapper = tvtk.PolyDataMapper()
-                configure_input(cyl_mapper, lower_cyl)
                 p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
-                cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p)
-                cyl_actor.user_transform = t
-                v.scene.add_actor(cyl_actor)
-                # cx, cy, cz = util.rotate_pt_around_yz_axes(comp.x, comp.y, comp.z, 0.0, model.attack_az)
-                cyl_actor.position = [comp.x, (z1 + comp.z) / 2.0 + 0.01, comp.y]
                 combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
 
-                upper_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r2, height=z2 - z1, resolution=50,
-                                                capping=False)
-                cyl_mapper = tvtk.PolyDataMapper()
-                configure_input(cyl_mapper, upper_cyl)
-                cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p)
-                cyl_actor.user_transform = t
-                v.scene.add_actor(cyl_actor)
-                cyl_actor.position = [comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y]
+                upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y), radius=r2,
+                                                height=z2 - z1, resolution=50, capping=False)
                 combined_source.add_input(upper_cyl.output)
 
-                cap = tvtk.SphereSource(center=(0, 0, 0), radius=r3, start_theta=0, end_theta=180,
-                                        phi_resolution=50)
-                cap_mapper = tvtk.PolyDataMapper()
-                configure_input(cap_mapper, cap)
-                cap_actor = tvtk.Actor(mapper=cap_mapper, property=p)
-                cap_actor.user_transform = t
-                v.scene.add_actor(cap_actor)
-                cap_actor.position = [comp.x, z2 + comp.z, comp.y]
+                cap = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, start_theta=0, end_theta=180,
+                                        phi_resolution=50, theta_resolution=50)
                 combined_source.add_input(cap.output)
 
-                combination = combined_source.output
-                surf = mlab.pipeline.surface(combination, name='blast volume %s' % comp.name)
+                surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
+                surf.actor.actor.property = p
+                surf.actor.actor.user_transform = t
                 mlab.outline(surf)
                 mlab.axes(surf)
 
