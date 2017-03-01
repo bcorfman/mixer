@@ -36,31 +36,31 @@ class ParamController:
         self.dlg.cboTermVel.clear()
         self.dlg.cboBurstHeight.clear()
 
-    def populateComboBoxes(self):
-        aofs = set((x.rsplit('-', 2)[0].rsplit('_', 2)[2] for x in self.out_files))
-        vels = set((x.rsplit('-', 2)[1] for x in self.out_files))
-        heights = set((x.rsplit('-', 2)[2] for x in self.out_files))
+    def populateComboBoxes(self, case_prefix):
+        aofs = set((x.rsplit('-', 2)[0].rsplit('_', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
+        vels = set((x.rsplit('-', 2)[1] for x in self.out_files if x.startswith(case_prefix)))
+        heights = set((x.rsplit('-', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
         self.dlg.cboAOF.clear()
         self.dlg.cboTermVel.clear()
         self.dlg.cboBurstHeight.clear()
         if aofs:
-            lst = [(int(aof), aof) for aof in aofs]
+            lst = [(float(aof), aof) for aof in aofs]
             lst = [aof for _, aof in sorted(lst)]
             self.dlg.cboAOF.addItems(lst)
         if vels:
-            lst = [(int(vel), vel) for vel in vels]
+            lst = [(float(vel), vel) for vel in vels]
             lst = [vel for _, vel in sorted(lst)]
             self.dlg.cboTermVel.addItems(lst)
         if heights:
-            lst = [(int(h), h) for h in heights]
+            lst = [(float(h), h) for h in heights]
             lst = [h for _, h in sorted(lst)]
             self.dlg.cboBurstHeight.addItems(lst)
+        self.dlg.cboPkSurface.addItems(['Matrix'])
+
         file_prefix = self.getFileMatch()
         if not file_prefix:
             return
-
         self.update_model(file_prefix)
-        self.dlg.cboPkSurface.addItems(['Matrix'])
 
     def onBtnChoose(self):
         # noinspection PyTypeChecker
@@ -76,7 +76,7 @@ class ParamController:
 
     # noinspection PyUnusedLocal
     def onLstCase_ItemClicked(self, item):
-        self.populateComboBoxes()
+        self.populateComboBoxes(item.text())
         self.ini_parser.write_ini_file()
         self.dlg.btnDisplay.setEnabled(True)
 

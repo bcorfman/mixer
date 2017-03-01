@@ -46,7 +46,7 @@ class DataModel(object):
         self.kill_lines = None
         self.last_node = None
         self.tgt_center = None
-        self.swept_volume_radius = None
+        self.volume_radius = None
         self.mtx_kill_id = None
         self.blast_comps = None
 
@@ -58,19 +58,28 @@ class DataModel(object):
         if exists(mtx_file):
             Matrix(self).read(mtx_file)
             self.transform_matrix()
-        self.transform_surfaces()
         self.transform_blast_volumes()
+        self.transform_surfaces()
         self.find_closest_az_and_el_indices()
+
+    def transform_blast_volumes(self):
+        kill_comps = self.extract_components(self.mtx_kill_id)
+        self.blast_comps = set(kill_comps).intersection(self.blast_vol.keys())
 
     def transform_surfaces(self):
         """
-        Calculate a swept volume radius and geometric center for the target surfaces.
+        Calculate a volume radius and geometric center for the target surfaces.
         """
         self.tgt_center = util.geometric_center(self.surfaces)
         self.surfaces = np.array(self.surfaces)
         surface_points = [(s[0], s[1]) for s in self.surfaces]
         tgt_center_points = [(self.tgt_center[0], self.tgt_center[1]) for _ in self.surfaces]
-        self.swept_volume_radius = max(util.distance_between(surface_points, tgt_center_points))
+        self.volume_radius = max(util.distance_between(surface_points, tgt_center_points))
+        if self.blast_comps:
+            for i in self.blast_comps:
+                comp = self.comp_list[i]
+                r1, r2, r3, z1, z2 = self.blast_vol[i]
+                self.volume_radius = max(self.volume_radius, z1 + z2 + comp.z + r3)
 
     def transform_matrix(self):
         # here I apply matrix offset to the gridline coordinates. Otherwise, I would have to apply the offset
@@ -83,10 +92,6 @@ class DataModel(object):
         self.cell_size_defl = util.measure_between(self.gridlines_defl)
         self.pks = np.clip(self.pks, 0.0, 1.0)  # get rid of floating point noise that can cause Pk values > 1.0
 
-    def transform_blast_volumes(self):
-        kill_comps = self.extract_components(self.mtx_kill_id)
-        self.blast_comps = set(kill_comps).intersection(self.blast_vol.keys())
-
     def extract_components(self, kill_type, kill_node=None):
         """
         :param kill_type: string with k number (e.g., 'k1' or 'k5') matched against the same type in the kill
@@ -97,7 +102,7 @@ class DataModel(object):
         if not kill_type:
             return []
         if kill_node is None:
-            kill_node = self.last_node[kill_type]
+            kill_node = self.last_node.get(kill_type, '')
         type_and_node = kill_type + ',' + kill_node
         if not self.kill_lines.get(type_and_node):
             return []

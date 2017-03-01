@@ -2,7 +2,7 @@ import sys
 import numpy as np
 from os.path import dirname, sep, splitext, basename, exists
 from collections import OrderedDict
-
+from const import CMPID, R1, R2, R3, Z1, Z2
 
 class AVComp(object):
     def __init__(self, **args):
@@ -239,13 +239,18 @@ class Output(object):
 
     # noinspection PyUnusedLocal
     def _parse_blast_components(self, line):
+        model = self.model
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
             if len(tokens) != 6:
                 return
-            self.model.blast_vol[int(tokens[0]) - 1] = [float(tokens[1]), float(tokens[2]), float(tokens[3]),
-                                                        float(tokens[4]), float(tokens[5])]
+            idx = int(tokens[CMPID]) - 1
+            r1, r2, r3, z1, z2 = (float(tokens[R1]), float(tokens[R2]), float(tokens[R3]), float(tokens[Z1]),
+                                  float(tokens[Z2]))
+            model.blast_vol[idx] = [r1, r2, r3, z1, z2]
+            if r1 == 0.0 and r2 == 0.0 and z1 == 0.0:  # sphere
+                line = self.out.readline()  # this line contains the extra "Sphere" field
             line = self.out.readline().strip()
 
     def _parse_kill_file(self, line):

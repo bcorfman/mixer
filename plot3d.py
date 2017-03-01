@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from numpy import array, full
+from numpy import array, full, flipud, fliplr
 import util
 from tvtk.api import tvtk
 from tvtk.common import configure_input
@@ -71,24 +71,11 @@ class Plotter:
     def plot_srf_file(self):
         model = self.model
         fig = mlab.gcf()
-        if model.az_averaging:
-            cyl = tvtk.CylinderSource(center=model.tgt_center, radius=model.swept_volume_radius,
-                                      height=model.srf_max_z + .5,  # slight fudge factor to enclose all top surfaces
-                                      resolution=50, capping=True)
-            cyl_mapper = tvtk.PolyDataMapper(input_connection=cyl.output_port)
-            p = tvtk.Property(opacity=0.65, color=GYPSY_PINK)
-            cx, cy, cz = model.tgt_center[0], model.tgt_center[2] / 2, -model.tgt_center[1]
-            cyl_actor = tvtk.Actor(mapper=cyl_mapper, property=p, position=(cx, cy, cz))
-            t = tvtk.Transform()
-            t.rotate_x(90.0)
-            cyl_actor.user_transform = t
-            fig.scene.add_actor(cyl_actor)
-        else:
-            polys = array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) / 4)])
-            poly_obj = tvtk.PolyData(points=model.surfaces, polys=polys)
-            self.target = mlab.pipeline.surface(poly_obj, name='target', figure=fig)
-            self.target.actor.property.representation = 'wireframe'
-            self.target.actor.property.color = (0, 0, 0)
+        polys = array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) / 4)])
+        poly_obj = tvtk.PolyData(points=model.surfaces, polys=polys)
+        self.target = mlab.pipeline.surface(poly_obj, name='target', figure=fig)
+        self.target.actor.property.representation = 'wireframe'
+        self.target.actor.property.color = (0, 0, 0)
 
     def plot_matrix_file(self):
         model = self.model
@@ -100,26 +87,31 @@ class Plotter:
         x_dim, y_dim, z_dim = len(model.gridlines_range), len(model.gridlines_defl), len(elevations)
         rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
                                      z_coordinates=elevations, dimensions=(x_dim, y_dim, z_dim))
-
-        # Extract a plane from the grid for display. This geometry filter may not be needed,
-        # but it doesn't hurt anything.
-        plane = tvtk.RectilinearGridGeometryFilter(extent=(0, x_dim - 1, 0, y_dim - 1, 0, z_dim - 1))
-        configure_input(plane, rgrid)
-        rgrid_mapper = tvtk.PolyDataMapper(input_connection=plane.output_port)
-
-        p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
-        wire_actor = tvtk.Actor(mapper=rgrid_mapper, property=p)
-        figure.scene.add_actor(wire_actor)  # add rectilinear grid to the scene
-
         # Grid colors are displayed using an additional array (PKs).
-        # T transposes the 2D PK array to match the viewer coordinate system and then
-        # ravel() flatten the 2D array to a 1D array for VTK use as scalars.
+        # T transposes the 2D PK array to match the gridline cells and then
+        # ravel() flattens the 2D array to a 1D array for VTK use as scalars.
         rgrid.cell_data.scalars = model.pks.T.ravel()
         rgrid.cell_data.scalars.name = 'pks'
         rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
+        # Extract a plane from the grid for display. This geometry filter may not be needed,
+        # but it doesn't hurt anything.
+        #plane = tvtk.RectilinearGridGeometryFilter(extent=(0, x_dim - 1, 0, y_dim - 1, 0, z_dim - 1))
+        #configure_input(plane, rgrid)
+        #rgrid_mapper = tvtk.PolyDataMapper(input_connection=plane.output_port)
+
+        t = tvtk.Transform()
+        t.rotate_z(180.0)  # matrix is reversed in VTK coordinate system
+        p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
+        #wire_actor = tvtk.Actor(mapper=rgrid_mapper, property=p)
+        #wire_actor.user_transform = t
+        #figure.scene.add_actor(wire_actor)  # add rectilinear grid to the scene
+
         # this method puts the surface in the Mayavi pipeline so the user can change it.
         surf = mlab.pipeline.surface(rgrid, name='matrix')
+        surf.actor.actor.user_transform = t
+        surf.actor.actor.property = p
+        surf.actor.update_data()
 
         # give PK colorbar a range between 0 and 1. The default is to use the min/max values in the array,
         # which would give us a custom range every time and make it harder for the user to consistently identify what
@@ -151,7 +143,7 @@ class Plotter:
                 sphere_actor = tvtk.Actor(mapper=sphere_mapper, property=p)
                 sphere_actor.user_transform = t
                 v.scene.add_actor(sphere_actor)
-                sphere_actor.position = [comp.x, z2 + comp.z, comp.y]  # TODO: check correct sphere rotation
+                sphere_actor.position = [comp.x, z2 + comp.z, comp.y]
             else:
                 # double cylinder
                 lower_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r1,
@@ -164,6 +156,7 @@ class Plotter:
                 v.scene.add_actor(cyl_actor)
                 # cx, cy, cz = util.rotate_pt_around_yz_axes(comp.x, comp.y, comp.z, 0.0, model.attack_az)
                 cyl_actor.position = [comp.x, (z1 + comp.z) / 2.0 + 0.01, comp.y]
+                combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
 
                 upper_cyl = tvtk.CylinderSource(center=(0, 0, 0), radius=r2, height=z2 - z1, resolution=50,
                                                 capping=False)
@@ -173,6 +166,7 @@ class Plotter:
                 cyl_actor.user_transform = t
                 v.scene.add_actor(cyl_actor)
                 cyl_actor.position = [comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y]
+                combined_source.add_input(upper_cyl.output)
 
                 cap = tvtk.SphereSource(center=(0, 0, 0), radius=r3, start_theta=0, end_theta=180,
                                         phi_resolution=50)
@@ -182,23 +176,47 @@ class Plotter:
                 cap_actor.user_transform = t
                 v.scene.add_actor(cap_actor)
                 cap_actor.position = [comp.x, z2 + comp.z, comp.y]
+                combined_source.add_input(cap.output)
+
+                combination = combined_source.output
+                surf = mlab.pipeline.surface(combination, name='blast volume %s' % comp.name)
+                mlab.outline(surf)
+                mlab.axes(surf)
 
     def plot_munition(self):
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,
         attack azimuth and terminal velocity. """
         model = self.model
         fig = mlab.gcf()
-
-        # rotate unit vector into position of munition attack_az and aof
-        xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, model.attack_az)
+        scale = max(model.gridlines_range[-1] - model.gridlines_range[0],
+                    model.gridlines_defl[-1] - model.gridlines_defl[0]) / 1000
         # position arrow position outside of target, using both maximum radius and matrix offset.
-        arrow_distance = model.swept_volume_radius + 10  # fudge to put arrow just outside radius
-        xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance, 0.0, 0.0, model.aof, model.attack_az)
-        mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False, line_width=15,
-                      scale_factor=15, name='munition', mode='arrow', figure=fig)
-        format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity'
-        mlab.text3d(xloc, yloc, zloc + 6, format_str.format(model.aof, model.attack_az, model.term_vel),
-                    color=(1, 1, 1), scale=(2, 2, 2), name='munition-text', figure=fig)
+        arrow_distance = model.volume_radius + 20 - (model.aof / 90.0 * 20)  # fudge to put arrow just outside radius
+        if not model.az_averaging:
+            # rotate unit vector into position of munition attack_az and aof
+            xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, model.attack_az)
+
+            # rotate arrow into correct position
+            xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance, 0.0, 0.0, model.aof, model.attack_az)
+            mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
+                          line_width=15, scale_factor=15, name='munition', mode='arrow', figure=fig)
+            # label arrow with text describing terminal conditions
+            format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity'
+            mlab.text3d(xloc, yloc, zloc + 12, format_str.format(model.aof, model.attack_az, model.term_vel),
+                        color=(1, 1, 1), scale=(scale, scale, scale), name='munition-text', figure=fig)
+        else:
+            for az in range(0, 360, int(model.attack_az)):
+                # rotate unit vector into position of munition attack_az and aof
+                xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
+
+                # rotate arrow into correct position
+                xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance, 0.0, 0.0, model.aof, az)
+                mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
+                              line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow', figure=fig)
+                if az == 0:
+                    format_str = '{0} deg AOF\nAveraged attack az - {1} deg increment\n{2} ft/s terminal velocity'
+                    mlab.text3d(xloc, yloc, zloc + 12, format_str.format(model.aof, model.attack_az, model.term_vel),
+                                color=(1, 1, 1), scale=(scale, scale, scale), name='munition-text', figure=fig)
 
     def plot_data(self, model):
         self.model = model
