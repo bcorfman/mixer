@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from numpy import array, full, flipud, fliplr
+from numpy import array, full, flipud, fliplr, amin
 import util
 from tvtk.api import tvtk
 from tvtk.common import configure_input
@@ -79,7 +79,6 @@ class Plotter:
 
     def plot_matrix_file(self):
         model = self.model
-        figure = mlab.gcf()
 
         # Define rectilinear grid according to the matrix gridlines.
         # Set the single Z coordinate in the elevation array equal to the munition burst height.
@@ -137,19 +136,37 @@ class Plotter:
                 lower_cyl = tvtk.CylinderSource(center=(comp.x, (z1 + comp.z) / 2.0 + 0.01, comp.y), radius=r1,
                                                 height=z1, resolution=50, capping=True)
                 p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
+                # add lower cylinder to combined volume
                 combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
 
                 upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y), radius=r2,
-                                                height=z2 - z1, resolution=50, capping=False)
+                                                height=z2 - z1, resolution=500, capping=False)
+                # add upper cylinder to combined volume
                 combined_source.add_input(upper_cyl.output)
 
+                cyl = tvtk.CylinderSource(center=(comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y), radius=r2,
+                                          height=z2 - z1, resolution=500, capping=False)
                 cap = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, start_theta=0, end_theta=180,
-                                        phi_resolution=50, theta_resolution=50)
-                combined_source.add_input(cap.output)
+                                        phi_resolution=500, theta_resolution=500)
+                # volumes must be converted to triangles before using intersection filter
+                cyl_to_tri = tvtk.TriangleFilter(input_connection=cyl.output_port)
+                sphere_to_tri = tvtk.TriangleFilter(input_connection=cap.output_port)
+                boolean_op = tvtk.BooleanOperationPolyDataFilter()
+                boolean_op.operation = 'intersection'
+                boolean_op.add_input_connection(0, cyl_to_tri.output_port)
+                boolean_op.add_input_connection(1, sphere_to_tri.output_port)
+                boolean_op.update()
+                pts = boolean_op.output.points.to_array()  # returns Points structure converted to numpy array
+                smallest_height = amin(pts[:, 1])
 
+                # add resulting intersecting cap to combined volume
+                combined_source.add_input(boolean_op.output)
+
+                # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume.
                 surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
-                surf.actor.actor.property = p
-                surf.actor.actor.user_transform = t
+                surf.actor.actor.property = p  # add color
+                surf.actor.actor.user_transform = t  # rotate the volume
+
                 mlab.outline(surf)
                 mlab.axes(surf)
 
@@ -204,4 +221,4 @@ class Plotter:
         # picker = figure.on_mouse_pick(self.pick_callback)
         # picker.tolerance = 0.01 # Decrease the tolerance, so that we can more easily select a precise point
         scene.disable_render = False  # reinstate display
-        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50), figure=mlab.gcf())  # focalpoint=(0, 0, 29), figure=mlab.gcf())
+        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50), figure=mlab.gcf())

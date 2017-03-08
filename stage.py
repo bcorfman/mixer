@@ -2,7 +2,7 @@ import sys
 import os
 from PySide import QtGui, QtCore
 from paramcontroller import ParamController
-from uiloader import loadUiWidget
+from uiloader import load_ui_widget
 from inifile import IniParser
 
 if __name__ == '__main__':
@@ -11,7 +11,7 @@ if __name__ == '__main__':
         app = QtGui.QApplication(sys.argv)
     except RuntimeError:
         app = QtCore.QCoreApplication.instance(sys.argv)
-    param_dlg = loadUiWidget('paramdlg.ui')
+    param_dlg = load_ui_widget('paramdlg.ui')
     geo = param_dlg.frameGeometry()
     height, width = geo.height(), geo.width()
     x, y = geo.x(), geo.y()
@@ -27,11 +27,11 @@ if __name__ == '__main__':
     param_dlg_ctlr = ParamController(param_dlg, ini_parser.dir, out_files)
 
     param_dlg.btnChoose.clicked.connect(param_dlg_ctlr.on_btn_choose)
-    param_dlg.lstCase.itemClicked.connect(param_dlg_ctlr._on_case_item_clicked)
-    param_dlg.btnDisplay.clicked.connect(param_dlg_ctlr._on_btn_display)
-    param_dlg.cboAOF.currentIndexChanged.connect(param_dlg_ctlr._on_dialog_changed)
-    param_dlg.cboTermVel.currentIndexChanged.connect(param_dlg_ctlr._on_dialog_changed)
-    param_dlg.cboBurstHeight.currentIndexChanged.connect(param_dlg_ctlr._on_dialog_changed)
-    app.aboutToQuit.connect(param_dlg_ctlr.aboutToQuit)
+    param_dlg.lstCase.itemClicked.connect(param_dlg_ctlr.on_case_item_clicked)
+    param_dlg.btnDisplay.clicked.connect(param_dlg_ctlr.on_btn_display)
+    param_dlg.cboAOF.currentIndexChanged.connect(param_dlg_ctlr.on_dialog_changed)
+    param_dlg.cboTermVel.currentIndexChanged.connect(param_dlg_ctlr.on_dialog_changed)
+    param_dlg.cboBurstHeight.currentIndexChanged.connect(param_dlg_ctlr.on_dialog_changed)
+    app.aboutToQuit.connect(param_dlg_ctlr.about_to_quit)
     param_dlg.show()
     app.exec_()

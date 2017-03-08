@@ -1,7 +1,7 @@
-__author__ = 'brandon.corfman'
-
 from PySide.QtGui import QWidget, QSizePolicy, QStyleOption, QStylePainter
 from PySide.QtCore import Qt, QEvent, QSize
+
+__author__ = 'brandon.corfman'
 
 
 class TextLabel(QWidget):

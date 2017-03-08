@@ -106,13 +106,13 @@ def geometric_center(surfaces):
     return (max_x - min_x) / 2.0, (max_y - min_y) / 2.0, (max_z - min_z) / 2.0
 
 
-def near_zero(num, delta=0.01):
+def near_zero(num, epsilon=0.01):
     """
     :param num: a number (float or integer)
-    :param delta: allowable difference between num and zero.
+    :param epsilon: allowable difference between num and zero.
     :return: True/False value indicating whether num is in tolerance.
     """
-    return abs(num) <= delta
+    return abs(num) <= epsilon
 
 
 class TestUtil(unittest.TestCase):

@@ -4,6 +4,7 @@ from os.path import dirname, sep, splitext, basename, exists
 from collections import OrderedDict
 from const import CMPID, R1, R2, R3, Z1, Z2
 
+
 class AVComp(object):
     def __init__(self, **args):
         self.id = args['id']
