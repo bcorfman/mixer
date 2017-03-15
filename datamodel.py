@@ -79,7 +79,7 @@ class DataModel(object):
             for i in self.blast_comps:
                 comp = self.comp_list[i]
                 r1, r2, r3, z1, z2 = self.blast_vol[i]
-                self.volume_radius = max(self.volume_radius, z1 + z2 + comp.z + r3)
+                self.volume_radius = max(self.volume_radius, z1 + z2 + comp.z + max(r3, r2, r1))
 
     def transform_matrix(self):
         # here I apply matrix offset to the gridline coordinates. Otherwise, I would have to apply the offset

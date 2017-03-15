@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from numpy import array, full, flipud, fliplr, amin
+import math
+from numpy import array, full, flipud, fliplr, amin, eye
 import util
 from tvtk.api import tvtk
 from tvtk.common import configure_input
 from mayavi import mlab
 from const import GYPSY_PINK
-
 
 """
 Created on Wed Nov 27 10:37:08 2013
@@ -109,64 +109,84 @@ class Plotter:
         surf.module_manager.scalar_lut_manager.use_default_range = False
         surf.module_manager.scalar_lut_manager.data_range = array([0., 1.])
         mlab.colorbar(surf, title='Cell Pk', orientation='vertical')
-        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 140,
+
+        # Put max and min gridline coordinates in the upper-right corner of the matrix.
+        # Also, scale the text to a readable size.
+        sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 100))
+        spacing = max(5, sz)
+        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 5 * spacing + 2 * sz,
                     str('Matrix range: (%5.1f, %5.1f)' % (model.gridlines_range[0], model.gridlines_range[-1])),
-                    scale=(20, 20, 20), name='Matrix range coordinates')
-        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 100,
+                    scale=(sz, sz, sz), name='Matrix range coordinates')
+        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 5 * spacing,
                     str('Matrix defl: (%5.1f, %5.1f)' % (model.gridlines_defl[0], model.gridlines_defl[-1])),
-                    scale=(20, 20, 20), name='Matrix deflection coordinates')
+                    scale=(sz, sz, sz), name='Matrix deflection coordinates')
 
     def plot_blast_volume(self):
         model = self.model
         t = tvtk.Transform()
         t.rotate_x(90.0)
+        p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
         for i in model.blast_comps:
             comp = model.comp_list[i]
             r1, r2, r3, z1, z2 = model.blast_vol[i]
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
-                p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
                 sphere = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, phi_resolution=50,
                                            theta_resolution=50)
                 surf = mlab.pipeline.surface(sphere.output, name='blast sphere %s' % comp.name)
                 surf.actor.actor.property = p
                 surf.actor.actor.user_transform = t
-            else:
-                # double cylinder
-                lower_cyl = tvtk.CylinderSource(center=(comp.x, (z1 + comp.z) / 2.0 + 0.01, comp.y), radius=r1,
-                                                height=z1, resolution=50, capping=True)
-                p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
-                # add lower cylinder to combined volume
-                combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
+            else:  # single cylinder merged with sphere cap
+                if z2 <= z1:
+                    z_offset = -z2 if z2 < 0 else 0
+                    cap = tvtk.SphereSource(center=(comp.x, z2 + z_offset, comp.y), radius=r3, start_theta=0,
+                                            end_theta=180, phi_resolution=150, theta_resolution=150)
+                    cyl = tvtk.CylinderSource(center=(comp.x, (z1 + z_offset) / 2.0 + 0.01, comp.y), radius=r1,
+                                              height=z1 + z_offset, resolution=150, capping=True)
+                    tri1 = tvtk.TriangleFilter(input_connection=cap.output_port)
+                    tri2 = tvtk.TriangleFilter(input_connection=cyl.output_port)
+                    boolean_op = tvtk.BooleanOperationPolyDataFilter()
+                    boolean_op.operation = 'difference'
+                    boolean_op.add_input_connection(0, tri1.output_port)
+                    boolean_op.add_input_connection(1, tri2.output_port)
+                    boolean_op.update()
+                    lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
+                                                    height=z1, resolution=150, capping=True)
+                    combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
+                    translate_mat = eye(4)
+                    translate_mat[0, 3] = comp.x
+                    translate_mat[1, 3] = z_offset
+                    translate_mat[2, 3] = comp.y
+                    translate = tvtk.Transform()
+                    translate.set_matrix(translate_mat.flatten())
+                    translater = tvtk.TransformPolyDataFilter(input=boolean_op.output)
+                    translater.transform = translate
+                    combined_source.add_input(translater.output)
+                else:  # double cylinder merged with sphere cap
+                    lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
+                                                    height=z1, resolution=150, capping=True)
+                    # add lower cylinder to combined volume
+                    combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
 
-                upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y), radius=r2,
-                                                height=z2 - z1, resolution=500, capping=False)
-                # add upper cylinder to combined volume
-                combined_source.add_input(upper_cyl.output)
+                    z_join = math.sqrt(r3 * r3 - r2 * r2)
+                    upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z_join + z2 - z1) / 2.0) + z1 + comp.z, comp.y),
+                                                    radius=r2, height=z_join + z2 - z1, resolution=150, capping=False)
+                    cap = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, start_theta=0,
+                                            end_theta=180, phi_resolution=150, theta_resolution=150)
+                    tri1 = tvtk.TriangleFilter(input_connection=upper_cyl.output_port)
+                    tri2 = tvtk.TriangleFilter(input_connection=cap.output_port)
+                    boolean_op = tvtk.BooleanOperationPolyDataFilter()
+                    boolean_op.operation = 'intersection'
+                    boolean_op.add_input_connection(0, tri1.output_port)
+                    boolean_op.add_input_connection(1, tri2.output_port)
+                    boolean_op.update()
+                    # add resulting intersecting cap to combined volume
+                    combined_source.add_input(boolean_op.output)
 
-                cyl = tvtk.CylinderSource(center=(comp.x, ((z2 - z1) / 2.0) + z1 + comp.z, comp.y), radius=r2,
-                                          height=z2 - z1, resolution=500, capping=False)
-                cap = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, start_theta=0, end_theta=180,
-                                        phi_resolution=500, theta_resolution=500)
-                # volumes must be converted to triangles before using intersection filter
-                cyl_to_tri = tvtk.TriangleFilter(input_connection=cyl.output_port)
-                sphere_to_tri = tvtk.TriangleFilter(input_connection=cap.output_port)
-                boolean_op = tvtk.BooleanOperationPolyDataFilter()
-                boolean_op.operation = 'intersection'
-                boolean_op.add_input_connection(0, cyl_to_tri.output_port)
-                boolean_op.add_input_connection(1, sphere_to_tri.output_port)
-                boolean_op.update()
-                pts = boolean_op.output.points.to_array()  # returns Points structure converted to numpy array
-                smallest_height = amin(pts[:, 1])
-
-                # add resulting intersecting cap to combined volume
-                combined_source.add_input(boolean_op.output)
-
-                # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume.
+                # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
                 surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
                 surf.actor.actor.property = p  # add color
                 surf.actor.actor.user_transform = t  # rotate the volume
-
                 mlab.outline(surf)
                 mlab.axes(surf)
 
@@ -175,35 +195,46 @@ class Plotter:
         attack azimuth and terminal velocity. """
         model = self.model
         fig = mlab.gcf()
-        scale = max(model.gridlines_range[-1] - model.gridlines_range[0],
-                    model.gridlines_defl[-1] - model.gridlines_defl[0]) / 1000
+
+        # calculate scaling size for matrix range and deflection text.
+        # allow for a missing matrix file by checking to see whether gridlines exist first.
+        if model.gridlines_range:
+            sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 1000),
+                     int(abs(model.gridlines_defl[-1] - model.gridlines_defl[0])) / 1000)
+        else:
+            sz = 1
+
         # position arrow position outside of target, using both maximum radius and matrix offset.
-        arrow_distance = model.volume_radius + 20 - (model.aof / 90.0 * 20)  # fudge to put arrow just outside radius
+        arrow_distance = model.volume_radius + 5
         if not model.az_averaging:
             # rotate unit vector into position of munition attack_az and aof
             xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, model.attack_az)
 
             # rotate arrow into correct position
-            xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance, 0.0, 0.0, model.aof, model.attack_az)
-            mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
-                          line_width=15, scale_factor=15, name='munition', mode='arrow', figure=fig)
+            xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance - abs(model.tgt_center[0]), 0.0, 0.0,
+                                                             model.aof, model.attack_az)
+            mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv],
+                          color=(1, 1, 1), reset_zoom=False, line_width=15, scale_factor=15, name='munition',
+                          mode='arrow', figure=fig)
             # label arrow with text describing terminal conditions
             format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity'
-            mlab.text3d(xloc, yloc, zloc + 12, format_str.format(model.aof, model.attack_az, model.term_vel),
-                        color=(1, 1, 1), scale=(scale, scale, scale), name='munition-text', figure=fig)
+            mlab.text3d(xloc, yloc, zloc + 8, format_str.format(model.aof, model.attack_az, model.term_vel),
+                        color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text', figure=fig)
         else:
             for az in range(0, 360, int(model.attack_az)):
                 # rotate unit vector into position of munition attack_az and aof
                 xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
 
                 # rotate arrow into correct position
-                xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance, 0.0, 0.0, model.aof, az)
-                mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
-                              line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow', figure=fig)
+                xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance - abs(model.tgt_center[0]), 0.0, 0.0,
+                                                                 model.aof, az)
+                mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv],
+                              [zv], color=(1, 1, 1), reset_zoom=False, line_width=15, scale_factor=15,
+                              name='munition %d deg' % az, mode='arrow', figure=fig)
                 if az == 0:
-                    format_str = '{0} deg AOF\nAveraged attack az - {1} deg increment\n{2} ft/s terminal velocity'
-                    mlab.text3d(xloc, yloc, zloc + 12, format_str.format(model.aof, model.attack_az, model.term_vel),
-                                color=(1, 1, 1), scale=(scale, scale, scale), name='munition-text', figure=fig)
+                    format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity'
+                    mlab.text3d(xloc, yloc, zloc + 8, format_str.format(model.aof, model.attack_az, model.term_vel),
+                                color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text', figure=fig)
 
     def plot_data(self, model):
         self.model = model
