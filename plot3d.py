@@ -59,12 +59,13 @@ class Plotter:
                 avg_pe /= (model.num_ms * model.num_vl)
             # sphere size represents average vulnerable areas (relative to each other)
             # sphere color represents average probability of exposure using blue-red colormap (blue=0.0, red=1.0)
-            sz.append(avg_av)
+            sz.append(1)
+            # sz.append(avg_av)
             color.append(avg_pe)
         if not model.az_averaging:
             color = [1.0 for _ in range(model.num_tables)]  # red for any by-azimuth AVs, since PEs don't apply.
         pts = mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
-                            scalars=color, mode='sphere')
+                            scalars=color, mode='sphere', scale_factor=1)
         pts.module_manager.scalar_lut_manager.reverse_lut = True
         pts.glyph.color_mode = 'color_by_scalar'
 
@@ -131,7 +132,7 @@ class Plotter:
             r1, r2, r3, z1, z2 = model.blast_vol[i]
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
-                sphere = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, phi_resolution=50,
+                sphere = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, phi_resolution=50,
                                            theta_resolution=50)
                 surf = mlab.pipeline.surface(sphere.output, name='blast sphere %s' % comp.name)
                 surf.actor.actor.property = p
@@ -169,9 +170,9 @@ class Plotter:
                     combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
 
                     z_join = math.sqrt(r3 * r3 - r2 * r2)
-                    upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z_join + z2 - z1) / 2.0) + z1 + comp.z, comp.y),
+                    upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z_join + z2 - z1) / 2.0) + z1, comp.y),
                                                     radius=r2, height=z_join + z2 - z1, resolution=150, capping=False)
-                    cap = tvtk.SphereSource(center=(comp.x, z2 + comp.z, comp.y), radius=r3, start_theta=0,
+                    cap = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, start_theta=0,
                                             end_theta=180, phi_resolution=150, theta_resolution=150)
                     tri1 = tvtk.TriangleFilter(input_connection=upper_cyl.output_port)
                     tri2 = tvtk.TriangleFilter(input_connection=cap.output_port)

@@ -58,6 +58,7 @@ class ParamController:
             lst = [(float(h), h) for h in heights]
             lst = [h for _, h in sorted(lst)]
             self.dlg.cboBurstHeight.addItems(lst)
+        self.dlg.cboPkSurface.clear()
         self.dlg.cboPkSurface.addItems(['Matrix'])
         self.stop_events = False
 
