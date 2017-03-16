@@ -1,6 +1,7 @@
 import os
 import re
-from PySide import QtGui
+from PySide.QtGui import QFileDialog, QApplication
+from PySide.QtCore import Qt
 from textlabel import TextLabel
 from inifile import IniParser
 from datamodel import DataModel
@@ -26,6 +27,7 @@ class ParamController:
         self.dlg.btnDisplay.setEnabled(False)
         self.plotter = None
         self.model = None
+        self.stop_events = False
 
     def _populate_list_box(self):
         cases = set((x.rsplit('-', 2)[0].rsplit('_', 2)[0] for x in self.out_files))
@@ -37,6 +39,7 @@ class ParamController:
         self.dlg.cboBurstHeight.clear()
 
     def _populate_combo_boxes(self, case_prefix):
+        self.stop_events = True
         aofs = set((x.rsplit('-', 2)[0].rsplit('_', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
         vels = set((x.rsplit('-', 2)[1] for x in self.out_files if x.startswith(case_prefix)))
         heights = set((x.rsplit('-', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
@@ -56,32 +59,36 @@ class ParamController:
             lst = [h for _, h in sorted(lst)]
             self.dlg.cboBurstHeight.addItems(lst)
         self.dlg.cboPkSurface.addItems(['Matrix'])
-
-        file_prefix = self._get_file_match()
-        if not file_prefix:
-            return
-        self._update_model(file_prefix)
+        self.stop_events = False
 
     def on_btn_choose(self):
         # noinspection PyTypeChecker
-        d = QtGui.QFileDialog.getExistingDirectory(None, 'Open Directory', self.start_dir,
-                                                   QtGui.QFileDialog.ShowDirsOnly |
-                                                   QtGui.QFileDialog.DontResolveSymlinks)
+        d = QFileDialog.getExistingDirectory(None, 'Open Directory', self.start_dir,
+                                             QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
         if d:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
             self.dlg.lblDirectory.setText('Directory: ' + d)
             self.ini_parser.dir = d
             self.ini_parser.write_ini_file()
             self.out_files = [os.path.splitext(x)[0] for x in os.listdir(d) if x.endswith('.out')]
             self._populate_list_box()
+            QApplication.restoreOverrideCursor()
 
     # noinspection PyUnusedLocal
     def on_case_item_clicked(self, item):
+        if self.stop_events:
+            return False
         self._populate_combo_boxes(item.text())
         self.ini_parser.write_ini_file()
-        self.dlg.btnDisplay.setEnabled(True)
+        file_prefix = self._get_file_match()
+        if not file_prefix:
+            return
+        self._update_model(file_prefix)
 
     # noinspection PyUnusedLocal
     def on_dialog_changed(self, idx):
+        if self.stop_events:
+            return
         file_prefix = self._get_file_match()
         if not file_prefix:
             return
@@ -89,10 +96,12 @@ class ParamController:
         self.ini_parser.write_ini_file()
 
     def on_btn_display(self):
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         from plot3d import Plotter
         file_prefix = self._get_file_match()
         plotter = Plotter(file_prefix, self.dlg)
         plotter.plot_data(self.model)
+        QApplication.restoreOverrideCursor()
 
     def about_to_quit(self):
         self.ini_parser.write_ini_file()
@@ -114,7 +123,8 @@ class ParamController:
         try:
             self.model = DataModel()
             self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')
-        except IOError, e:
-            QtGui.QMessageBox.warning(QtGui.QWidget(), "File error",
-                                      "Cannot find %s in the directory you chose." % e.filename,
-                                      QtGui.QMessageBox.StandardButton.Ok)
+            self.dlg.lblErrorReport.setText("")
+            self.dlg.btnDisplay.setEnabled(True)
+        except Exception, e:
+            self.dlg.lblErrorReport.setText(e.message)
+            self.dlg.btnDisplay.setEnabled(False)

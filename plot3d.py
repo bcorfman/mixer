@@ -187,8 +187,8 @@ class Plotter:
                 surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
                 surf.actor.actor.property = p  # add color
                 surf.actor.actor.user_transform = t  # rotate the volume
-                mlab.outline(surf)
-                mlab.axes(surf)
+                # mlab.outline(surf)
+                # mlab.axes(surf)
 
     def plot_munition(self):
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,

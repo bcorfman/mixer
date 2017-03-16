@@ -52,6 +52,8 @@ class DataModel(object):
 
     def read_and_transform_all_files(self, out_file):
         av_file, srf_file, mtx_file, kill_file = Output(self).read(out_file)
+        if av_file is None:
+            raise IOError("Case didn't complete.")
         AV(self).read(av_file)
         Surfaces(self).read(srf_file)
         Kill(self).read(kill_file)

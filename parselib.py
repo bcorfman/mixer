@@ -209,6 +209,7 @@ class Output(object):
         model.blast_vol = OrderedDict()
         model.av_file = ''
         model.srf_file = ''
+        self.case_completed = False
 
     def _parse_av_file(self, line):
         self.model.av_file = self._parse_filename(line, "Couldn't find AV file")
@@ -263,6 +264,9 @@ class Output(object):
             raise ValueError('Cannot read multiple matrices in a single .mtx file')
         self.model.kill_desc = kill_desc.strip()
 
+    def _parse_case_completed(self, line):
+        self.case_completed = True
+
     # noinspection PyUnusedLocal
     def _parse_filename(self, line, error_msg):
         _, fn = line.split(':', 1)
@@ -299,7 +303,9 @@ class Output(object):
                  'ANGLE OF FALL': self._parse_aof,
                  'CMPID': self._parse_blast_components,
                  'KILL DEFINITION FILE': self._parse_kill_file,
-                 'MATRIX REQUESTED FOR': self._parse_kill_description}
+                 'MATRIX REQUESTED FOR': self._parse_kill_description,
+                 'RUN COMPLETE': self._parse_case_completed
+                 }
         with open(out_file) as self.out:
             while 1:
                 line = self.out.readline()
@@ -309,8 +315,11 @@ class Output(object):
                     if line.lstrip().startswith(key):
                         match[key](line)
                         break
-        mtx_file = (dirname(out_file) + sep + splitext(basename(out_file))[0] + '.mtx')
-        return model.av_file, model.srf_file, mtx_file, model.kill_file
+        if self.case_completed:
+            mtx_file = (dirname(out_file) + sep + splitext(basename(out_file))[0] + '.mtx')
+            return model.av_file, model.srf_file, mtx_file, model.kill_file
+        else:
+            return None, None, None, None
 
 
 class KillNode(object):
