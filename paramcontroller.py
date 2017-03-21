@@ -83,7 +83,7 @@ class ParamController:
         self.ini_parser.write_ini_file()
         file_prefix = self._get_file_match()
         if not file_prefix:
-            return
+            return False
         self._update_model(file_prefix)
 
     # noinspection PyUnusedLocal
