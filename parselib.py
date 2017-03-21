@@ -284,7 +284,7 @@ class Output(object):
                 if exists(line):
                     return line
                 else:
-                    raise IOError("Couldn't find surface file.")
+                    raise IOError(error_msg)
 
     def read(self, out_file):
         """

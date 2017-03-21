@@ -1,5 +1,5 @@
 import os
-import re
+from fnmatch import fnmatch
 from PySide.QtGui import QFileDialog, QApplication
 from PySide.QtCore import Qt
 from textlabel import TextLabel
@@ -117,7 +117,7 @@ class ParamController:
             return ''
         prefix = case.text() + '_'
         suffix = '_' + aof + '-' + term_vel + '-' + burst_height
-        file_lst = [f for f in self.out_files if re.search('^' + prefix + '\d+' + suffix + '$', f)]
+        file_lst = [f for f in self.out_files if fnmatch(f, prefix + '*' + suffix)]
         return file_lst[0] if len(file_lst) == 1 else ''
 
     def _update_model(self, file_prefix):
