@@ -72,7 +72,6 @@ class DataModel(object):
         """
         Calculate a volume radius and geometric center for the target surfaces.
         """
-        self.tgt_center = util.geometric_center(self.surfaces)
         self.surfaces = np.array(self.surfaces)
         surface_points = [(s[0], s[1]) for s in self.surfaces]
         tgt_center_points = [(self.tgt_center[0], self.tgt_center[1]) for _ in self.surfaces]
@@ -85,8 +84,11 @@ class DataModel(object):
     def transform_matrix(self):
         # here I apply matrix offset to the gridline coordinates. Otherwise, I would have to apply the offset
         # to the target/obstacle surfaces, AVs, blast volumes, etc.
-        self.gridlines_range = util.apply_list_offset(self.gridlines_range, -self.offset_range)
-        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, -self.offset_defl)
+        # First, rotate the matrix by 180 degrees by reversing all gridlines and PK values
+        self.gridlines_range = [-i for i in self.gridlines_range]
+        self.gridlines_defl = [-i for i in self.gridlines_defl]
+        self.gridlines_range = util.apply_list_offset(self.gridlines_range, self.offset_range + self.tgt_center[0])
+        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, self.offset_defl + self.tgt_center[1])
         self.gridlines_range_mid = util.midpoints(self.gridlines_range)
         self.gridlines_defl_mid = util.midpoints(self.gridlines_defl)
         self.cell_size_range = util.measure_between(self.gridlines_range)

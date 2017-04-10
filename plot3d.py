@@ -95,15 +95,16 @@ class Plotter:
         rgrid.cell_data.scalars.name = 'pks'
         rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
-        t = tvtk.Transform()
-        t.rotate_z(180.0)  # matrix is reversed in VTK coordinate system
+        #t = tvtk.Transform()
+        #t.rotate_z(180.0)  # matrix is reversed in VTK coordinate system
         p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
 
         # this method puts the surface in the Mayavi pipeline so the user can change it.
         surf = mlab.pipeline.surface(rgrid, name='matrix')
-        surf.actor.actor.user_transform = t
+        #surf.actor.actor.user_transform = t
         surf.actor.actor.property = p
         surf.actor.update_data()
+        mlab.axes(surf)
 
         # give PK colorbar a range between 0 and 1. The default is to use the min/max values in the array,
         # which would give us a custom range every time and make it harder for the user to consistently identify what

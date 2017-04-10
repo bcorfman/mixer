@@ -214,6 +214,10 @@ class Output(object):
     def _parse_av_file(self, line):
         self.model.av_file = self._parse_filename(line, "Couldn't find AV file")
 
+    def _parse_target_center(self, line):
+        tokens = line.split(':')[1].strip().strip('\(\)').split(',')
+        self.model.tgt_center = float(tokens[0]), float(tokens[1])
+
     def _parse_term_vel(self, line):
         _, vel_text = line.split(':', 1)
         self.model.term_vel = float(vel_text.split()[0].strip())
@@ -295,6 +299,7 @@ class Output(object):
         """
         model = self.model
         match = {'TARGET AV FILE': self._parse_av_file,
+                 'TARGET CENTER COORDINATES': self._parse_target_center,
                  'TERMINAL VELOCITY': self._parse_term_vel,
                  'BURST HEIGHT': self._parse_burst_height,
                  'TARGET SURFACE FILE': self._parse_srf_file,
@@ -368,7 +373,7 @@ class Kill(object):
                 if not line:
                     raise IOError('Cannot read component line %d in kill file header.'.format(i))
                 tokens = line.split(None, 3)
-                description = tokens[2].strip()
+                description = tokens[-1].strip()
                 if description == model.kill_desc:
                     model.kill_id = tokens[0].lower()
             if not model.kill_id and model.kill_desc:
