@@ -47,27 +47,28 @@ class Plotter:
             y.append(model.comp_list[i].y)
             z.append(model.comp_list[i].z)
             # get the average masses and velocities for the selected azimuth and elevation
-            avg_av, avg_pe = 0.0, 0.0
-            for ims, _ in enumerate(model.mss):
+            #avg_av, avg_pe = 0.0, 0.0
+            #for ims, _ in enumerate(model.mss):
                 # noinspection PyAssignmentToLoopOrWithParameter
-                for ivl, _ in enumerate(model.vls):
-                    avg_av += model.avs[i][iaz][iel][ims][ivl]
-                    if model.az_averaging:
-                        avg_pe += model.pes[i][iaz][iel][ims][ivl]
-            avg_av /= (model.num_ms * model.num_vl)
-            if model.az_averaging:
-                avg_pe /= (model.num_ms * model.num_vl)
+            #    for ivl, _ in enumerate(model.vls):
+            #        avg_av += model.avs[i][iaz][iel][ims][ivl]
+            #        if model.az_averaging:
+            #            avg_pe += model.pes[i][iaz][iel][ims][ivl]
+            #avg_av /= (model.num_ms * model.num_vl)
+            #if model.az_averaging:
+            #    avg_pe /= (model.num_ms * model.num_vl)
             # sphere size represents average vulnerable areas (relative to each other)
             # sphere color represents average probability of exposure using blue-red colormap (blue=0.0, red=1.0)
-            sz.append(1)
+            sz.append(0.3)
             # sz.append(avg_av)
-            color.append(avg_pe)
+            color.append(1.0)  #(avg_pe)
         if not model.az_averaging:
             color = [1.0 for _ in range(model.num_tables)]  # red for any by-azimuth AVs, since PEs don't apply.
         pts = mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
                             scalars=color, mode='sphere', scale_factor=1)
         pts.module_manager.scalar_lut_manager.reverse_lut = True
         pts.glyph.color_mode = 'color_by_scalar'
+        pts.glyph.glyph_source.glyph_source.center = (0, 0, 0)
 
     def plot_srf_file(self):
         model = self.model

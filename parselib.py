@@ -129,7 +129,7 @@ class AV(object):
                                 raise ValueError("Bad fragment AV: component {0}, azimuth {1}, elevation {2}, "
                                                  "mass {3}, velocity {4}.".format(icmp+1, iaz+1, iel+1, ims+1, ivl+1))
                         if model.num_vl + 2 < len(tokens):  # detect velocity cutoff at end of line
-                            self.vel_cutoff[icmp][iaz][iel][ims] = tokens[model.num_vl + 3]
+                            self.vel_cutoff[icmp][iaz][iel][ims] = tokens[model.num_vl + 2]
                         if model.av_averaging < 1:  # azimuth averaged (either type)
                             tokens = self.avf.readline().strip().split()
                             for ivl in range(model.num_vl):
@@ -368,7 +368,7 @@ class Kill(object):
                 if not line:
                     raise IOError('Cannot read component line %d in kill file header.'.format(i))
                 tokens = line.split(None, 3)
-                description = tokens[3].strip()
+                description = tokens[2].strip()
                 if description == model.kill_desc:
                     model.kill_id = tokens[0].lower()
             if not model.kill_id and model.kill_desc:
