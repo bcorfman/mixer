@@ -39,29 +39,13 @@ class Plotter:
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
         model = self.model
-        iaz = model.az_idx
-        iel = model.el_idx
         x, y, z, sz, color = [], [], [], [], []
         for i in range(model.num_tables):  # iterates over real component AVs (no dummy components)
             x.append(model.comp_list[i].x)
             y.append(model.comp_list[i].y)
             z.append(model.comp_list[i].z)
-            # get the average masses and velocities for the selected azimuth and elevation
-            #avg_av, avg_pe = 0.0, 0.0
-            #for ims, _ in enumerate(model.mss):
-                # noinspection PyAssignmentToLoopOrWithParameter
-            #    for ivl, _ in enumerate(model.vls):
-            #        avg_av += model.avs[i][iaz][iel][ims][ivl]
-            #        if model.az_averaging:
-            #            avg_pe += model.pes[i][iaz][iel][ims][ivl]
-            #avg_av /= (model.num_ms * model.num_vl)
-            #if model.az_averaging:
-            #    avg_pe /= (model.num_ms * model.num_vl)
-            # sphere size represents average vulnerable areas (relative to each other)
-            # sphere color represents average probability of exposure using blue-red colormap (blue=0.0, red=1.0)
             sz.append(0.3)
-            # sz.append(avg_av)
-            color.append(1.0)  #(avg_pe)
+            color.append(1.0)
         if not model.az_averaging:
             color = [1.0 for _ in range(model.num_tables)]  # red for any by-azimuth AVs, since PEs don't apply.
         pts = mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
@@ -95,16 +79,12 @@ class Plotter:
         rgrid.cell_data.scalars.name = 'pks'
         rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
-        #t = tvtk.Transform()
-        #t.rotate_z(180.0)  # matrix is reversed in VTK coordinate system
         p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
 
         # this method puts the surface in the Mayavi pipeline so the user can change it.
         surf = mlab.pipeline.surface(rgrid, name='matrix')
-        #surf.actor.actor.user_transform = t
         surf.actor.actor.property = p
         surf.actor.update_data()
-        mlab.axes(surf)
 
         # give PK colorbar a range between 0 and 1. The default is to use the min/max values in the array,
         # which would give us a custom range every time and make it harder for the user to consistently identify what
@@ -117,10 +97,10 @@ class Plotter:
         # Also, scale the text to a readable size.
         sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 100))
         spacing = max(5, sz)
-        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 5 * spacing + 2 * sz,
+        mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing + 2 * sz,
                     str('Matrix range: (%5.1f, %5.1f)' % (model.gridlines_range[0], model.gridlines_range[-1])),
                     scale=(sz, sz, sz), name='Matrix range coordinates')
-        mlab.text3d(model.gridlines_range[0], model.gridlines_defl[-1], 5 * spacing,
+        mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing,
                     str('Matrix defl: (%5.1f, %5.1f)' % (model.gridlines_defl[0], model.gridlines_defl[-1])),
                     scale=(sz, sz, sz), name='Matrix deflection coordinates')
 
