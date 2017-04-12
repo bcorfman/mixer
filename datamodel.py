@@ -13,6 +13,7 @@ class DataModel(object):
         self.blast_vol = None
         self.av_file = None
         self.srf_file = None
+        self.mtx_extent_range, self.mtx_extent_defl = None, None
         self.cls_range, self.cls_defl = None, None
         self.offset_range, self.offset_defl = None, None
         self.gridlines_range, self.gridlines_defl = None, None
@@ -82,18 +83,23 @@ class DataModel(object):
                 self.volume_radius = max(self.volume_radius, z1 + z2 + max(r3, r2, r1))
 
     def transform_matrix(self):
-        # here I apply matrix offset to the gridline coordinates. Otherwise, I would have to apply the offset
-        # to the target/obstacle surfaces, AVs, blast volumes, etc.
-        # First, rotate the matrix by 180 degrees by reversing all gridlines and PK values
+        # Store the matrix extents in range & deflection for later display in the 3D scene.
+        self.mtx_extent_range = (self.gridlines_range[0], self.gridlines_range[-1])
+        self.mtx_extent_defl = (self.gridlines_defl[0], self.gridlines_defl[-1])
+        # Rotate the matrix by 180 degrees by reversing all gridlines and PK values
         self.gridlines_range = [-i for i in self.gridlines_range]
         self.gridlines_defl = [-i for i in self.gridlines_defl]
+        # Shift gridlines by applying matrix offset and target center extracted from .out file.
+        # Otherwise, would have to apply the shift to the target/obstacle surfaces, AVs, blast volumes, etc.
         self.gridlines_range = util.apply_list_offset(self.gridlines_range, self.offset_range + self.tgt_center[0])
         self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, self.offset_defl + self.tgt_center[1])
+        # Calculate midpoint of gridlines and a list of cell sizes based on gridline measurements
         self.gridlines_range_mid = util.midpoints(self.gridlines_range)
         self.gridlines_defl_mid = util.midpoints(self.gridlines_defl)
         self.cell_size_range = util.measure_between(self.gridlines_range)
         self.cell_size_defl = util.measure_between(self.gridlines_defl)
-        self.pks = np.clip(self.pks, 0.0, 1.0)  # get rid of floating point noise that can cause Pk values > 1.0
+        # Get rid of floating point noise that can cause Pk values > 1.0
+        self.pks = np.clip(self.pks, 0.0, 1.0)
 
     def extract_components(self, kill_type, kill_node=None):
         """

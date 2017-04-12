@@ -98,10 +98,10 @@ class Plotter:
         sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 100))
         spacing = max(5, sz)
         mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing + 2 * sz,
-                    str('Matrix range: (%5.1f, %5.1f)' % (model.gridlines_range[0], model.gridlines_range[-1])),
+                    str('Matrix range: (%5.1f, %5.1f)' % (model.mtx_extent_range[0], model.mtx_extent_range[1])),
                     scale=(sz, sz, sz), name='Matrix range coordinates')
         mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing,
-                    str('Matrix defl: (%5.1f, %5.1f)' % (model.gridlines_defl[0], model.gridlines_defl[-1])),
+                    str('Matrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_defl[0], model.mtx_extent_defl[1])),
                     scale=(sz, sz, sz), name='Matrix deflection coordinates')
 
     def plot_blast_volume(self):
