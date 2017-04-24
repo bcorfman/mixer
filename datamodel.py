@@ -74,9 +74,10 @@ class DataModel(object):
         Calculate a volume radius and geometric center for the target surfaces.
         """
         self.surfaces = np.array(self.surfaces)
-        surface_points = [(s[0], s[1]) for s in self.surfaces]
-        tgt_center_points = [(self.tgt_center[0], self.tgt_center[1]) for _ in self.surfaces]
-        self.volume_radius = max(util.distance_between(surface_points, tgt_center_points))
+        # surface_points = [(s[0], s[1]) for s in self.surfaces]
+        # tgt_center_points = [(self.tgt_center[0], self.tgt_center[1]) for _ in self.surfaces]
+        # self.volume_radius = max(util.distance_between(surface_points, tgt_center_points))
+        self.volume_radius = max(self.srf_min_x, self.srf_max_x, self.srf_min_y, self.srf_max_y)
         if self.blast_comps:
             for i in self.blast_comps:
                 r1, r2, r3, z1, z2 = self.blast_vol[i]

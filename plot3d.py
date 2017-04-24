@@ -68,7 +68,7 @@ class Plotter:
 
         # Define rectilinear grid according to the matrix gridlines.
         # Set the single Z coordinate in the elevation array equal to the munition burst height.
-        elevations = full(1, model.burst_height)
+        elevations = full(1, 0.0)
         x_dim, y_dim, z_dim = len(model.gridlines_range), len(model.gridlines_defl), len(elevations)
         rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
                                      z_coordinates=elevations, dimensions=(x_dim, y_dim, z_dim))
@@ -188,36 +188,41 @@ class Plotter:
             sz = 1
 
         # position arrow position outside of target, using both maximum radius and matrix offset.
-        arrow_distance = model.volume_radius + 5
+        line_scale = 15
+        zloc = model.burst_height + line_scale * math.sin(math.radians(model.aof))
+
         if not model.az_averaging:
-            # rotate unit vector into position of munition attack_az and aof
             xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, model.attack_az)
 
+            # rotate unit vector into position of munition attack_az and aof
+            xloc, yloc, _ = util.rotate_pt_around_yz_axes(-1.0, 0.0, 0.0, model.aof, model.attack_az)
+            xloc *= model.volume_radius
+            yloc *= model.volume_radius
+
             # rotate arrow into correct position
-            xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance - abs(model.tgt_center[0]), 0.0, 0.0,
-                                                             model.aof, model.attack_az)
-            mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv], [zv],
-                          color=(1, 1, 1), reset_zoom=False, line_width=15, scale_factor=15, name='munition',
-                          mode='arrow', figure=fig)
+            mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False, line_width=15,
+                          scale_factor=15, name='munition', mode='arrow', figure=fig)
             # label arrow with text describing terminal conditions
-            format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity'
-            mlab.text3d(xloc, yloc, zloc + 8, format_str.format(model.aof, model.attack_az, model.term_vel),
-                        color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text', figure=fig)
+            format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity\n{3} ft. burst height'
+            label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
+            mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text',
+                        figure=fig)
         else:
             for az in range(0, 360, int(model.attack_az)):
-                # rotate unit vector into position of munition attack_az and aof
                 xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
 
                 # rotate arrow into correct position
-                xloc, yloc, zloc = util.rotate_pt_around_yz_axes(-arrow_distance - abs(model.tgt_center[0]), 0.0, 0.0,
-                                                                 model.aof, az)
-                mlab.quiver3d([xloc], [yloc], [zloc + 1.0], [xv], [yv],
-                              [zv], color=(1, 1, 1), reset_zoom=False, line_width=15, scale_factor=15,
-                              name='munition %d deg' % az, mode='arrow', figure=fig)
+                xloc, yloc, _ = util.rotate_pt_around_yz_axes(-1.0, 0.0, 0.0, model.aof, az)
+                xloc *= model.volume_radius
+                yloc *= model.volume_radius
+                mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
+                              line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow', figure=fig)
                 if az == 0:
-                    format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity'
-                    mlab.text3d(xloc, yloc, zloc + 8, format_str.format(model.aof, model.attack_az, model.term_vel),
-                                color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text', figure=fig)
+                    format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity\n'
+                    format_str += '{3} fr. burst height'
+                    label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
+                    mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text',
+                                figure=fig)
 
     def plot_data(self, model):
         self.model = model
