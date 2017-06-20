@@ -126,6 +126,6 @@ class ParamController:
             self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')
             self.dlg.lblErrorReport.setText("")
             self.dlg.btnDisplay.setEnabled(True)
-        except Exception, e:
+        except Exception(e):
             self.dlg.lblErrorReport.setText(e.message)
             self.dlg.btnDisplay.setEnabled(False)

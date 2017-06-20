@@ -1,5 +1,5 @@
 from os.path import exists
-from parselib import AV, Surfaces, Output, Matrix, Kill
+from parselib import AV, Surfaces, Output, Matrix, Kill, Detail
 import numpy as np
 import util
 
@@ -50,9 +50,10 @@ class DataModel(object):
         self.volume_radius = None
         self.mtx_kill_id = None
         self.blast_comps = None
+        self.dh_comps = None
 
     def read_and_transform_all_files(self, out_file):
-        av_file, srf_file, mtx_file, kill_file = Output(self).read(out_file)
+        av_file, srf_file, mtx_file, kill_file, dtl_file = Output(self).read(out_file)
         if av_file is None:
             raise IOError("Case didn't complete.")
         AV(self).read(av_file)
@@ -61,6 +62,8 @@ class DataModel(object):
         if exists(mtx_file):
             Matrix(self).read(mtx_file)
             self.transform_matrix()
+        if exists(dtl_file):
+            Detail(self).read(dtl_file)
         self.transform_blast_volumes()
         self.transform_surfaces()
         self.find_closest_az_and_el_indices()
@@ -119,7 +122,7 @@ class DataModel(object):
         components = []
         for item in self.kill_lines[type_and_node].items:
             if item.startswith('c'):
-                components.append(int(item[1:]) - 1)
+                components.append(int(item[1:]))
             elif item.startswith('n'):
                 new_kill_type = kill_type.split(',')[0]
                 components.extend(self.extract_components(new_kill_type, item[1:]))

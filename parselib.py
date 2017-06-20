@@ -160,9 +160,9 @@ class Surfaces(object):
         model = self.model
         self.srf = None
         model.surfaces = []
-        model.srf_min_x, model.srf_max_x = sys.maxint, -sys.maxint
-        model.srf_min_y, model.srf_max_y = sys.maxint, -sys.maxint
-        model.srf_max_z = -sys.maxint
+        model.srf_min_x, model.srf_max_x = sys.maxsize, -sys.maxsize
+        model.srf_min_y, model.srf_max_y = sys.maxsize, -sys.maxsize
+        model.srf_max_z = -sys.maxsize
 
     def read(self, srf_file):
         """
@@ -209,6 +209,7 @@ class Output(object):
         model.blast_vol = OrderedDict()
         model.av_file = ''
         model.srf_file = ''
+        model.dh_comps = None
         self.case_completed = False
 
     def _parse_av_file(self, line):
@@ -244,6 +245,16 @@ class Output(object):
         self.model.aof = float(angle_text.split()[0])
 
     # noinspection PyUnusedLocal
+    def _parse_direct_hit_components(self, line):
+        model = self.model
+        model.dh_comps = set()
+        line = self.out.readline()
+        while line != '':
+            tokens = line.split()
+            model.dh_comps.add(int(tokens[1]))
+            line = self.out.readline()
+
+    # noinspection PyUnusedLocal
     def _parse_blast_components(self, line):
         model = self.model
         line = self.out.readline().strip()
@@ -251,7 +262,7 @@ class Output(object):
             tokens = line.split()
             if len(tokens) != 6:
                 return
-            idx = int(tokens[CMPID]) - 1
+            idx = int(tokens[CMPID])
             r1, r2, r3, z1, z2 = (float(tokens[R1]), float(tokens[R2]), float(tokens[R3]), float(tokens[Z1]),
                                   float(tokens[Z2]))
             model.blast_vol[idx] = [r1, r2, r3, z1, z2]
@@ -268,6 +279,7 @@ class Output(object):
             raise ValueError('Cannot read multiple matrices in a single .mtx file')
         self.model.kill_desc = kill_desc.strip()
 
+    # noinspection PyUnusedLocal
     def _parse_case_completed(self, line):
         self.case_completed = True
 
@@ -307,6 +319,7 @@ class Output(object):
                  'ATTACK AZIMUTH - AVERAGED': self._parse_averaged_attack_az,
                  'ANGLE OF FALL': self._parse_aof,
                  'CMPID': self._parse_blast_components,
+                 'SRFID': self._parse_direct_hit_components,
                  'KILL DEFINITION FILE': self._parse_kill_file,
                  'MATRIX REQUESTED FOR': self._parse_kill_description,
                  'RUN COMPLETE': self._parse_case_completed
@@ -321,10 +334,12 @@ class Output(object):
                         match[key](line)
                         break
         if self.case_completed:
-            mtx_file = (dirname(out_file) + sep + splitext(basename(out_file))[0] + '.mtx')
-            return model.av_file, model.srf_file, mtx_file, model.kill_file
+            file_path = dirname(out_file) + sep + splitext(basename(out_file))[0]
+            mtx_file = file_path + '.mtx'
+            dtl_file = file_path + '.dtl'
+            return model.av_file, model.srf_file, mtx_file, model.kill_file, dtl_file
         else:
-            return None, None, None, None
+            return None, None, None, None, None
 
 
 class KillNode(object):
@@ -388,19 +403,27 @@ class Kill(object):
                     continue
                 tokens = line.split()
                 if tokens[0].startswith('k'):
+                    # dict key is "kill, node"
                     key = tokens[0] + ',' + tokens[1]
+                    # hold current key and kill in case of '&' continuation line
                     curr_key, curr_kill = key, tokens[0]
+                    # store operator and components in KillNode object
                     op, items = tokens[2], [tokens[i] for i in range(3, len(tokens))]
                     model.kill_lines[key] = KillNode(op, items)
+                    # hold onto last node so we can later extract all components for that kill in DataModel class
                     model.last_node[tokens[0]] = tokens[1]
                 elif tokens[0].startswith('&'):  # continuation line
+                    # extend list of stored components in KillNode object
                     model.kill_lines[curr_key].items.extend([tokens[i] for i in range(1, len(tokens))])
                 elif tokens[0].startswith('#'):  # comment line
                     continue
-                elif tokens[0].isdigit():  # same kill, different node number
+                elif tokens[0].isdigit():  # already inside kill w/ consecutive node number
+                    # dict key is "kill, node"
                     key = curr_kill + ',' + tokens[0]
-                    curr_key = key
+                    curr_key = key  # hold current key in case of '&' continuation line
+                    # store kill nodes as an object accessed by key
                     model.kill_lines[key] = KillNode(tokens[1], [tokens[i] for i in range(2, len(tokens))])
+                    # hold onto last node so we can later extract all components for that kill in DataModel
                     model.last_node[curr_kill] = tokens[0]
                 else:
                     raise ValueError('Unrecognized token in kill file, line %d')
@@ -462,3 +485,151 @@ class Matrix(object):
                 tokens = line.split()
                 for d in range(model.cls_defl):
                     model.pks[r, d] = float(tokens[d])
+
+
+class Detail(object):
+    def __init__(self, az_averaging=None, attack_az=None, blast_comps=None, dh_comps=None, model=None):
+        if model is None:
+            self.model = self
+        else:
+            self.model = model
+        model = self.model
+        if az_averaging is not None:
+            model.az_averaging = az_averaging
+        if attack_az is not None:
+            model.attack_az = attack_az
+        if blast_comps is not None:
+            model.blast_comps = blast_comps
+        if dh_comps is not None:
+            model.dh_comps = dh_comps
+        self.dtl = None
+        self.burstpoint = None
+        self.comp_num = 1
+        model.radius = None
+        model.eval_center = None
+        model.sample_loc = {}
+        model.burst_loc = {}
+        model.dh_include_frag_effects = None
+        model.surface_hit = {}
+        model.frag_zones = {}
+        model.comp_pk = {}
+
+    # noinspection PyUnusedLocal
+    def _parse_radius(self, line):
+        line = self.dtl.readline()
+        tokens = line.split(':')
+        self.model.radius = float(tokens[1])
+
+    def _parse_evaluation_center(self, line):
+        tokens = line.strip().split(':')
+        self.model.eval_center = [float(tokens[1]), float(tokens[2]), float(tokens[3])]
+
+    def _parse_direct_hit(self, line):
+        self.model.dh_include_frag_effects = True if line.split(':')[1].startswith('T') else False
+
+    # noinspection PyUnusedLocal
+    def _parse_burstpoint(self, line):
+        model = self.model
+        model.dtl.readline()
+        line = model.dtl.readline()
+        tokens = line.split(':', 13)
+        idx = int(tokens[0])
+        self.burstpoint = idx
+        model.sample_loc[idx] = {}
+        model.burst_loc[idx] = {}
+        model.surface_hit[idx] = {}
+        model.frag_zones[idx] = {}
+        model.comp_pk[idx] = {}
+        if model.az_averaging:
+            attack_az = model.attack_az
+            if attack_az == 0:
+                attack_az = 1
+            step = 360 // attack_az
+            for az in range(0, 360, step):
+                model.sample_loc[idx][az] = (float(tokens[2]), float(tokens[3]), float(tokens[4]))
+                model.burst_loc[idx][az] = (float(tokens[8]), float(tokens[9]), float(tokens[10]))
+                model.surface_hit[idx][az] = int(tokens[12])
+        else:
+            model.sample_loc[idx][model.attack_az] = (float(tokens[2]), float(tokens[3]), float(tokens[4]))
+            model.burst_loc[idx][model.attack_az] = (float(tokens[8]), float(tokens[9]), float(tokens[10]))
+            model.surface_hit[idx][model.attack_az] = int(tokens[12])
+        self.comp_num = 1
+
+    def _parse_fragmentation(self, line):
+        model = self.model
+        idx = self.burstpoint
+        tokens = line.split(':')
+        num_frag_zones = int(tokens[2])
+        curr_frag_zone = 0
+        zone_info = []
+        while curr_frag_zone < num_frag_zones:
+            while True:
+                line = model.dtl.readline()
+                if line.startswith(':FRAG ZONE'):
+                    break
+            tokens = line.split(':', 3)
+            zone_num = int(tokens[2])
+            line = model.dtl.readline()
+            tokens = line.split(':', 4)
+            lower_zone_angle, upper_zone_angle = float(tokens[2]), float(tokens[3])
+            zone_info.append((zone_num, lower_zone_angle, upper_zone_angle))
+            curr_frag_zone += 1
+        model.frag_zones[idx][self.comp_num] = zone_info
+
+    # noinspection PyUnusedLocal
+    def _parse_component(self, line):
+        model = self.model
+        model.dtl.readline()
+        line = model.dtl.readline()
+        tokens = line.split(':', 15)
+        idx = self.burstpoint
+        if self.comp_num in model.dh_comps:
+            model.comp_pk[idx][self.comp_num] = float(tokens[12])
+        elif self.comp_num in model.blast_comps:
+            model.comp_pk[idx][self.comp_num] = float(tokens[13])
+        else:
+            model.comp_pk[idx][self.comp_num] = float(tokens[14])
+        self.comp_num += 1
+
+    def read(self, dtl_file):
+        """
+        Reads detailed output file data.
+
+        :param dtl_file: Detailed output filename.
+        :return: None
+        """
+        match = {'RADIUS ID': self._parse_radius,
+                 'EVALUATION CENTER': self._parse_evaluation_center,
+                 'DH PKs': self._parse_direct_hit,
+                 'BPNUM': self._parse_burstpoint,
+                 ':FRAGMENTATION': self._parse_fragmentation,
+                 ':COMPONENT': self._parse_component
+                 }
+        self.comp_num = 1
+        model = self.model
+        model.radius = None
+        model.eval_center = None
+        model.sample_loc = {}
+        model.burst_loc = {}
+        model.dh_include_frag_effects = None
+        model.surface_hit = {}
+        model.frag_zones = {}
+        model.comp_pk = {}
+
+        with open(dtl_file) as self.dtl:
+            while 1:
+                line = self.dtl.readline()
+                if not line:
+                    break
+                for key in match:
+                    if line.lstrip().startswith(key):
+                        match[key](line)
+                        break
+
+
+def main():
+    d = Detail(True, 0, [19], [13, 14, 15, 16])
+    d.read('/Users/brandon_corfman/Downloads/data/ComponentTarget_SingleAz_0deg_1_5-0-0.dtl')
+
+if __name__ == '__main__':
+    main()
