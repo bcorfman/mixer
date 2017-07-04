@@ -49,11 +49,13 @@ class DataModel(object):
         self.tgt_center = None
         self.volume_radius = None
         self.mtx_kill_id = None
-        self.blast_comps = None
-        self.dh_comps = None
+        self.blast_comps = []
+        self.dh_comps = []
+        self.dtl_file = None
+        self.comp_num = None
 
     def read_and_transform_all_files(self, out_file):
-        av_file, srf_file, mtx_file, kill_file, dtl_file = Output(self).read(out_file)
+        av_file, srf_file, mtx_file, kill_file, self.dtl_file = Output(self).read(out_file)
         if av_file is None:
             raise IOError("Case didn't complete.")
         AV(self).read(av_file)
@@ -62,8 +64,8 @@ class DataModel(object):
         if exists(mtx_file):
             Matrix(self).read(mtx_file)
             self.transform_matrix()
-        if exists(dtl_file):
-            Detail(self).read(dtl_file)
+        if exists(self.dtl_file):
+            Detail(self).read(self.dtl_file)
         self.transform_blast_volumes()
         self.transform_surfaces()
         self.find_closest_az_and_el_indices()

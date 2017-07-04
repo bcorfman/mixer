@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 import math
-from numpy import array, full, flipud, fliplr, amin, eye
+from numpy import array, full, eye
 import util
 from tvtk.api import tvtk
-from tvtk.common import configure_input
 from mayavi import mlab
 from const import GYPSY_PINK
 
@@ -57,7 +56,7 @@ class Plotter:
     def plot_srf_file(self):
         model = self.model
         fig = mlab.gcf()
-        polys = array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) / 4)])
+        polys = array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) // 4)])
         poly_obj = tvtk.PolyData(points=model.surfaces, polys=polys)
         self.target = mlab.pipeline.surface(poly_obj, name='target', figure=fig)
         self.target.actor.property.representation = 'wireframe'
@@ -183,7 +182,7 @@ class Plotter:
         # allow for a missing matrix file by checking to see whether gridlines exist first.
         if model.gridlines_range:
             sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 1000),
-                     int(abs(model.gridlines_defl[-1] - model.gridlines_defl[0])) / 1000)
+                     int(abs(model.gridlines_defl[-1] - model.gridlines_defl[0]) / 1000))
         else:
             sz = 1
 
@@ -224,6 +223,17 @@ class Plotter:
                     mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text',
                                 figure=fig)
 
+    def plot_detail(self):
+        model = self.model
+        fig = mlab.gcf()
+        x, y, z, sz = [], [], [], []
+        for c in range(1, model.comp_num):
+            pt = model.sample_loc[c][0]
+            x.append(pt[0])
+            y.append(pt[1])
+            z.append(pt[2])
+        mlab.points3d(x, y, z, color=(1, 1, 1), figure=fig, scale_factor=0.75)
+
     def plot_data(self, model):
         self.model = model
         scene = mlab.get_engine().new_scene()  # create a new scene window every time
@@ -236,6 +246,8 @@ class Plotter:
             self.plot_blast_volume()  # plot blast volume if blast damage was included in output
         self.plot_av()
         self.plot_munition()
+        if self.model.dtl_file is not None:
+            self.plot_detail()
         # figure = mlab.gcf()
         # picker = figure.on_mouse_pick(self.pick_callback)
         # picker.tolerance = 0.01 # Decrease the tolerance, so that we can more easily select a precise point

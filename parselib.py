@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from os.path import dirname, sep, splitext, basename, exists
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from const import CMPID, R1, R2, R3, Z1, Z2
 
 
@@ -248,11 +248,11 @@ class Output(object):
     def _parse_direct_hit_components(self, line):
         model = self.model
         model.dh_comps = set()
-        line = self.out.readline()
+        line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
             model.dh_comps.add(int(tokens[1]))
-            line = self.out.readline()
+            line = self.out.readline().strip()
 
     # noinspection PyUnusedLocal
     def _parse_blast_components(self, line):
@@ -267,7 +267,9 @@ class Output(object):
                                   float(tokens[Z2]))
             model.blast_vol[idx] = [r1, r2, r3, z1, z2]
             if r1 == 0.0 and r2 == 0.0 and z1 == 0.0:  # sphere
-                line = self.out.readline()  # this line contains the extra "Sphere" field
+                line = self.out.readline().strip()  # this line contains the extra "Sphere" field
+                if line == "":  # extra insurance in case there's a blank line; exit early
+                    break
             line = self.out.readline().strip()
 
     def _parse_kill_file(self, line):
@@ -478,7 +480,6 @@ class Matrix(object):
             line = self.mtx.readline().strip()
             model.gridlines_defl = [float(x) for x in line.split()]
             self.mtx.readline().strip()  # skip <matrix pks> header
-            # TODO: Use numpy.genfromtxt instead to read PK array
             model.pks = np.zeros((model.cls_range, model.cls_defl))
             for r in range(model.cls_range):
                 line = self.mtx.readline().strip()
@@ -488,11 +489,13 @@ class Matrix(object):
 
 
 class Detail(object):
-    def __init__(self, az_averaging=None, attack_az=None, blast_comps=None, dh_comps=None, model=None):
+    def __init__(self, model=None, az_averaging=None, attack_az=None, blast_comps=None, dh_comps=None):
         if model is None:
             self.model = self
         else:
             self.model = model
+        self.dh_comps = []
+        self.blast_comps = []
         model = self.model
         if az_averaging is not None:
             model.az_averaging = az_averaging
@@ -504,15 +507,17 @@ class Detail(object):
             model.dh_comps = dh_comps
         self.dtl = None
         self.burstpoint = None
-        self.comp_num = 1
+        self.step = None
+        self.az = None
         model.radius = None
         model.eval_center = None
         model.sample_loc = {}
         model.burst_loc = {}
-        model.dh_include_frag_effects = None
         model.surface_hit = {}
         model.frag_zones = {}
         model.comp_pk = {}
+        model.dh_include_frag_effects = None
+        model.comp_num = None
 
     # noinspection PyUnusedLocal
     def _parse_radius(self, line):
@@ -530,30 +535,28 @@ class Detail(object):
     # noinspection PyUnusedLocal
     def _parse_burstpoint(self, line):
         model = self.model
-        model.dtl.readline()
-        line = model.dtl.readline()
-        tokens = line.split(':', 13)
+        self.dtl.readline()
+        line = self.dtl.readline()
+        tokens = line.split(':', 15)
         idx = int(tokens[0])
+        if not model.sample_loc.get(idx):
+            model.sample_loc[idx] = defaultdict(dict)
+        if not model.burst_loc.get(idx):
+            model.burst_loc[idx] = defaultdict(dict)
+        if not model.surface_hit.get(idx):
+            model.surface_hit[idx] = defaultdict(dict)
+        if not model.frag_zones.get(idx):
+            model.frag_zones[idx] = defaultdict(dict)
+        if not model.comp_pk.get(idx):
+            model.comp_pk[idx] = defaultdict(dict)
         self.burstpoint = idx
-        model.sample_loc[idx] = {}
-        model.burst_loc[idx] = {}
-        model.surface_hit[idx] = {}
-        model.frag_zones[idx] = {}
-        model.comp_pk[idx] = {}
-        if model.az_averaging:
-            attack_az = model.attack_az
-            if attack_az == 0:
-                attack_az = 1
-            step = 360 // attack_az
-            for az in range(0, 360, step):
-                model.sample_loc[idx][az] = (float(tokens[2]), float(tokens[3]), float(tokens[4]))
-                model.burst_loc[idx][az] = (float(tokens[8]), float(tokens[9]), float(tokens[10]))
-                model.surface_hit[idx][az] = int(tokens[12])
-        else:
-            model.sample_loc[idx][model.attack_az] = (float(tokens[2]), float(tokens[3]), float(tokens[4]))
-            model.burst_loc[idx][model.attack_az] = (float(tokens[8]), float(tokens[9]), float(tokens[10]))
-            model.surface_hit[idx][model.attack_az] = int(tokens[12])
-        self.comp_num = 1
+        self.az = int(float(tokens[14]))
+        model.sample_loc[idx][self.az] = (float(tokens[2]), float(tokens[3]), float(tokens[4]))
+        model.burst_loc[idx][self.az] = (float(tokens[8]), float(tokens[9]), float(tokens[10]))
+        model.surface_hit[idx][self.az] = int(tokens[12])
+        model.frag_zones[idx][self.az] = {}
+        model.comp_pk[idx][self.az] = {}
+        model.comp_num = 1
 
     def _parse_fragmentation(self, line):
         model = self.model
@@ -564,32 +567,33 @@ class Detail(object):
         zone_info = []
         while curr_frag_zone < num_frag_zones:
             while True:
-                line = model.dtl.readline()
+                line = self.dtl.readline()
                 if line.startswith(':FRAG ZONE'):
                     break
             tokens = line.split(':', 3)
             zone_num = int(tokens[2])
-            line = model.dtl.readline()
+            line = self.dtl.readline()
             tokens = line.split(':', 4)
             lower_zone_angle, upper_zone_angle = float(tokens[2]), float(tokens[3])
             zone_info.append((zone_num, lower_zone_angle, upper_zone_angle))
             curr_frag_zone += 1
-        model.frag_zones[idx][self.comp_num] = zone_info
+        model.frag_zones[idx][self.az][model.comp_num] = zone_info
 
     # noinspection PyUnusedLocal
     def _parse_component(self, line):
         model = self.model
-        model.dtl.readline()
-        line = model.dtl.readline()
+        self.dtl.readline()
+        line = self.dtl.readline()
         tokens = line.split(':', 15)
         idx = self.burstpoint
-        if self.comp_num in model.dh_comps:
-            model.comp_pk[idx][self.comp_num] = float(tokens[12])
-        elif self.comp_num in model.blast_comps:
-            model.comp_pk[idx][self.comp_num] = float(tokens[13])
+        cmp = model.comp_num
+        if model.comp_num in model.dh_comps:
+            model.comp_pk[idx][self.az][cmp] = float(tokens[12])
+        elif model.comp_num in model.blast_comps:
+            model.comp_pk[idx][self.az][cmp] = float(tokens[13])
         else:
-            model.comp_pk[idx][self.comp_num] = float(tokens[14])
-        self.comp_num += 1
+            model.comp_pk[idx][self.az][cmp] = float(tokens[14])
+        model.comp_num += 1
 
     def read(self, dtl_file):
         """
@@ -598,15 +602,12 @@ class Detail(object):
         :param dtl_file: Detailed output filename.
         :return: None
         """
-        match = {'RADIUS ID': self._parse_radius,
-                 'EVALUATION CENTER': self._parse_evaluation_center,
-                 'DH PKs': self._parse_direct_hit,
-                 'BPNUM': self._parse_burstpoint,
+        match = {'BPNUM': self._parse_burstpoint,
                  ':FRAGMENTATION': self._parse_fragmentation,
                  ':COMPONENT': self._parse_component
                  }
-        self.comp_num = 1
         model = self.model
+        model.comp_num = 1
         model.radius = None
         model.eval_center = None
         model.sample_loc = {}
@@ -617,19 +618,18 @@ class Detail(object):
         model.comp_pk = {}
 
         with open(dtl_file) as self.dtl:
+            # skip past header
+            for _ in range(8):
+                self.dtl.readline()
+            self._parse_radius(self.dtl.readline())
+            self._parse_evaluation_center(self.dtl.readline())
+            self._parse_direct_hit(self.dtl.readline())
             while 1:
                 line = self.dtl.readline()
                 if not line:
                     break
                 for key in match:
-                    if line.lstrip().startswith(key):
+                    if line.startswith(key):
                         match[key](line)
                         break
 
-
-def main():
-    d = Detail(True, 0, [19], [13, 14, 15, 16])
-    d.read('/Users/brandon_corfman/Downloads/data/ComponentTarget_SingleAz_0deg_1_5-0-0.dtl')
-
-if __name__ == '__main__':
-    main()

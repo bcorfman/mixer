@@ -1,6 +1,6 @@
 import sys
 import os
-from PySide import QtGui, QtCore
+from PyQt4 import QtGui, QtCore
 from paramcontroller import ParamController
 from uiloader import load_ui_widget
 from inifile import IniParser

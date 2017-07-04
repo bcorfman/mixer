@@ -1,5 +1,5 @@
-from PySide.QtGui import QWidget, QSizePolicy, QStyleOption, QStylePainter
-from PySide.QtCore import Qt, QEvent, QSize
+from PyQt4.QtGui import QWidget, QSizePolicy, QStyleOption, QStylePainter
+from PyQt4.QtCore import Qt, QEvent, QSize
 
 __author__ = 'brandon.corfman'
 
@@ -21,7 +21,7 @@ class TextLabel(QWidget):
         """Set the `text` string to display.
         """
         if self.__text != text:
-            self.__text = unicode(text)
+            self.__text = text
             self.__update()
 
     def text(self):
@@ -53,6 +53,7 @@ class TextLabel(QWidget):
 
         return self.__sizeHint
 
+    # noinspection PyUnusedLocal
     def paintEvent(self, event):
         painter = QStylePainter(self)
         option = QStyleOption()

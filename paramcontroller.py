@@ -1,7 +1,7 @@
 import os
 from fnmatch import fnmatch
-from PySide.QtGui import QFileDialog, QApplication
-from PySide.QtCore import Qt
+from PyQt4.QtGui import QFileDialog, QApplication
+from PyQt4.QtCore import Qt
 from textlabel import TextLabel
 from inifile import IniParser
 from datamodel import DataModel
@@ -98,10 +98,10 @@ class ParamController:
 
     def on_btn_display(self):
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        # from plot3d import Plotter
-        # file_prefix = self._get_file_match()
-        # plotter = Plotter(file_prefix, self.dlg)
-        # plotter.plot_data(self.model)
+        from plot3d import Plotter
+        file_prefix = self._get_file_match()
+        plotter = Plotter(file_prefix, self.dlg)
+        plotter.plot_data(self.model)
         QApplication.restoreOverrideCursor()
 
     def about_to_quit(self):
@@ -126,6 +126,6 @@ class ParamController:
             self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')
             self.dlg.lblErrorReport.setText("")
             self.dlg.btnDisplay.setEnabled(True)
-        except Exception, e:
-            self.dlg.lblErrorReport.setText(e.message)
+        except Exception as e:
+            self.dlg.lblErrorReport.setText(str(e))
             self.dlg.btnDisplay.setEnabled(False)
