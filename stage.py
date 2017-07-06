@@ -35,3 +35,5 @@ if __name__ == '__main__':
     app.aboutToQuit.connect(param_dlg_ctlr.about_to_quit)
     param_dlg.show()
     app.exec_()
+    app.deleteLater()
+    sys.exit()

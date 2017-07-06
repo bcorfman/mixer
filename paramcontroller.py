@@ -5,7 +5,8 @@ from PyQt4.QtCore import Qt
 from textlabel import TextLabel
 from inifile import IniParser
 from datamodel import DataModel
-
+from uiloader import load_ui_widget
+from mayavi_qt import MayaviQWidget
 
 class ParamController:
     def __init__(self, dlg, start_dir, out_files):
@@ -25,7 +26,7 @@ class ParamController:
         self.ini_parser.dir = start_dir
         self._populate_list_box()
         self.dlg.btnDisplay.setEnabled(False)
-        self.plotter = None
+        self.plot_windows = []
         self.model = None
         self.stop_events = False
 
@@ -98,10 +99,15 @@ class ParamController:
 
     def on_btn_display(self):
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        from plot3d import Plotter
-        file_prefix = self._get_file_match()
-        plotter = Plotter(file_prefix, self.dlg)
-        plotter.plot_data(self.model)
+        #from plot3d import Plotter
+        #file_prefix = self._get_file_match()
+        #plotter = Plotter(file_prefix, self.dlg)
+        #plotter.plot_data(self.model)
+        # TODO: better window management instead of always adding to list
+        plotter_win = load_ui_widget('mayavi_win.ui')
+        plotter = MayaviQWidget(plotter_win)
+        self.plot_windows.append(plotter_win)
+        plotter_win.show()
         QApplication.restoreOverrideCursor()
 
     def about_to_quit(self):
@@ -121,6 +127,7 @@ class ParamController:
         return file_lst[0] if len(file_lst) == 1 else ''
 
     def _update_model(self, file_prefix):
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
             self.model = DataModel()
             self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')
@@ -129,3 +136,4 @@ class ParamController:
         except Exception as e:
             self.dlg.lblErrorReport.setText(str(e))
             self.dlg.btnDisplay.setEnabled(False)
+        QApplication.restoreOverrideCursor()
