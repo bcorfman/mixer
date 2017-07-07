@@ -1,5 +1,6 @@
 from PyQt4 import QtGui
 from tvtk.pyface.api import DecoratedScene
+from plot3d import Plotter
 
 
 class MayaviQWidget(QtGui.QWidget):
@@ -13,10 +14,10 @@ class MayaviQWidget(QtGui.QWidget):
         # QtCore.pyqtRestoreInputHook()
 
         # The edit_traits call will generate the widget to embed.
-        self.ui = DecoratedScene(parent).control
-        parent.gridLayout.addWidget(self.ui)
-        #geo = parent.gridLayout
-        #width, height = geo.width(), geo.height()
-        #x, y = geo.x(), geo.y()
-        #self.setGeometry(x, y, width, height)
-        self.ui.setParent(self)
+        self.scene = DecoratedScene(parent).control
+        layout = QtGui.QVBoxLayout(parent)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.scene)
+
+

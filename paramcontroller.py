@@ -8,6 +8,7 @@ from datamodel import DataModel
 from uiloader import load_ui_widget
 from mayavi_qt import MayaviQWidget
 
+
 class ParamController:
     def __init__(self, dlg, start_dir, out_files):
         self.win = None
@@ -99,15 +100,14 @@ class ParamController:
 
     def on_btn_display(self):
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        #from plot3d import Plotter
-        #file_prefix = self._get_file_match()
-        #plotter = Plotter(file_prefix, self.dlg)
-        #plotter.plot_data(self.model)
-        # TODO: better window management instead of always adding to list
         plotter_win = load_ui_widget('mayavi_win.ui')
-        plotter = MayaviQWidget(plotter_win)
+        control = MayaviQWidget(plotter_win.frmMayavi)
         self.plot_windows.append(plotter_win)
         plotter_win.show()
+        from plot3d import Plotter
+        file_prefix = self._get_file_match()
+        plotter = Plotter(file_prefix, self.dlg)
+        plotter.plot_data(self.model)
         QApplication.restoreOverrideCursor()
 
     def about_to_quit(self):
