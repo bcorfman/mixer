@@ -6,7 +6,7 @@ from textlabel import TextLabel
 from inifile import IniParser
 from datamodel import DataModel
 from uiloader import load_ui_widget
-from mayavi_qt import MayaviQWidget
+from mayavicontroller import MayaviController
 
 
 class ParamController:
@@ -28,6 +28,7 @@ class ParamController:
         self._populate_list_box()
         self.dlg.btnDisplay.setEnabled(False)
         self.plot_windows = []
+        self.controllers = []
         self.model = None
         self.stop_events = False
 
@@ -101,13 +102,12 @@ class ParamController:
     def on_btn_display(self):
         QApplication.setOverrideCursor(Qt.WaitCursor)
         plotter_win = load_ui_widget('mayavi_win.ui')
-        control = MayaviQWidget(plotter_win.frmMayavi)
-        self.plot_windows.append(plotter_win)
-        plotter_win.show()
-        from plot3d import Plotter
         file_prefix = self._get_file_match()
-        plotter = Plotter(file_prefix, self.dlg)
-        plotter.plot_data(self.model)
+        plotter_win.setWindowTitle(file_prefix)
+        self.plot_windows.append(plotter_win)
+        controller = MayaviController(self.model, plotter_win)
+        self.controllers.append(controller)
+        plotter_win.show()
         QApplication.restoreOverrideCursor()
 
     def about_to_quit(self):

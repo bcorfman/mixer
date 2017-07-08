@@ -4,6 +4,7 @@ from numpy import array, full, eye
 import util
 from tvtk.api import tvtk
 from mayavi import mlab
+from mayavi.api import Engine
 from const import GYPSY_PINK
 
 """
@@ -26,10 +27,11 @@ __doc__ = '''
 
 
 class Plotter:
-    def __init__(self, title, parent):
+    def __init__(self, parent, scene):
         self.parent = parent
-        self.title = title
         self.scale_defl, self.scale_range = 0.0, 0.0
+        self.engine = None
+        self.scene = scene
         self.plot = None
         self.target = None
         self.model = None
@@ -55,10 +57,9 @@ class Plotter:
 
     def plot_srf_file(self):
         model = self.model
-        fig = mlab.gcf()
         polys = array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) // 4)])
         poly_obj = tvtk.PolyData(points=model.surfaces, polys=polys)
-        self.target = mlab.pipeline.surface(poly_obj, name='target', figure=fig)
+        self.target = mlab.pipeline.surface(poly_obj, name='target')
         self.target.actor.property.representation = 'wireframe'
         self.target.actor.property.color = (0, 0, 0)
 
@@ -176,7 +177,6 @@ class Plotter:
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,
         attack azimuth and terminal velocity. """
         model = self.model
-        fig = mlab.gcf()
 
         # calculate scaling size for matrix range and deflection text.
         # allow for a missing matrix file by checking to see whether gridlines exist first.
@@ -200,12 +200,11 @@ class Plotter:
 
             # rotate arrow into correct position
             mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False, line_width=15,
-                          scale_factor=15, name='munition', mode='arrow', figure=fig)
+                          scale_factor=15, name='munition', mode='arrow')
             # label arrow with text describing terminal conditions
             format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity\n{3} ft. burst height'
             label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-            mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text',
-                        figure=fig)
+            mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
         else:
             for az in range(0, 360, int(model.attack_az)):
                 xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
@@ -215,30 +214,30 @@ class Plotter:
                 xloc *= model.volume_radius
                 yloc *= model.volume_radius
                 mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
-                              line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow', figure=fig)
+                              line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow')
                 if az == 0:
                     format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity\n'
                     format_str += '{3} fr. burst height'
                     label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-                    mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text',
-                                figure=fig)
+                    mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
 
     def plot_detail(self):
         model = self.model
-        fig = mlab.gcf()
         x, y, z, sz = [], [], [], []
         for c in range(1, model.comp_num):
             pt = model.sample_loc[c][0]
             x.append(pt[0])
             y.append(pt[1])
             z.append(pt[2])
-        mlab.points3d(x, y, z, color=(1, 1, 1), figure=fig, scale_factor=0.75)
+        mlab.points3d(x, y, z, color=(1, 1, 1), scale_factor=0.75)
 
     def plot_data(self, model):
         self.model = model
-        scene = mlab.get_engine().new_scene()  # create a new scene window every time
-        scene.title = self.title
-        scene.disable_render = True  # generate scene more quickly by temporarily turning off rendering
+        self.engine = Engine()
+        self.engine.start()
+        mlab.set_engine(self.engine)
+        self.engine.add_scene(self.scene)
+        self.scene.disable_render = True  # generate scene more quickly by temporarily turning off rendering
         if self.model.pks is not None:
             self.plot_matrix_file()  # matrix can be plotted if it was read in
         self.plot_srf_file()
@@ -248,8 +247,7 @@ class Plotter:
         self.plot_munition()
         if self.model.dtl_file is not None:
             self.plot_detail()
-        # figure = mlab.gcf()
-        # picker = figure.on_mouse_pick(self.pick_callback)
-        # picker.tolerance = 0.01 # Decrease the tolerance, so that we can more easily select a precise point
-        scene.disable_render = False  # reinstate display
-        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50), figure=mlab.gcf())
+        # TODO: Put picker setup on mayavicontroller
+        self.scene.disable_render = False  # reinstate display
+        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
+        return mlab.gcf()
