@@ -36,6 +36,12 @@ class Plotter:
         self.target = None
         self.model = None
         self.rotation = 0
+        self.sample_x = []
+        self.sample_y = []
+        self.sample_z = []
+        self.sample_points = None
+        self.sample_glyphs = None
+        self.outline = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -223,13 +229,17 @@ class Plotter:
 
     def plot_detail(self):
         model = self.model
-        x, y, z, sz = [], [], [], []
+        self.sample_x, self.sample_y, self.sample_z = [], [], []
         for c in range(1, model.comp_num):
             pt = model.sample_loc[c][0]
-            x.append(pt[0])
-            y.append(pt[1])
-            z.append(pt[2])
-        mlab.points3d(x, y, z, color=(1, 1, 1), scale_factor=0.75)
+            self.sample_x.append(pt[0])
+            self.sample_y.append(pt[1])
+            self.sample_z.append(pt[2])
+        self.sample_glyphs = mlab.points3d(self.sample_x, self.sample_y, self.sample_z, color=(1, 1, 1),
+                                           scale_factor=0.75)
+        # Here, we grab the points describing the individual glyph, to figure
+        # out how many points are in an individual glyph.
+        self.sample_points = self.sample_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
 
     def plot_data(self, model):
         self.model = model
@@ -251,3 +261,12 @@ class Plotter:
         self.scene.disable_render = False  # reinstate display
         mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
         return mlab.gcf()
+
+    def set_outline(self, x, y, z):
+        if self.outline is None:
+            self.outline = mlab.outline(line_width=3)
+            # self.outline.outline_mode = 'cornered'
+        self.outline.bounds = (x - 0.5, x + 0.5,
+                               y - 0.5, y + 0.5,
+                               z - 0.5, z + 0.5)
+        self.outline.visible = True

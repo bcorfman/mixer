@@ -40,6 +40,8 @@ class MayaviController(QtGui.QWidget):
                 rdo_button = QtGui.QRadioButton('{0} degrees'.format(az), parent.frmAzimuth)
                 layout.addWidget(rdo_button)
                 self.buttonGroup.addButton(rdo_button, az)
+                if az == 0:
+                    rdo_button.setChecked(True)
         else:
             parent.frmAzimuth.setVisible(False)
         model.attack_az = 0.0
@@ -47,8 +49,31 @@ class MayaviController(QtGui.QWidget):
 
         plotter = Plotter(parent, scene)
         figure = plotter.plot_data(model)
-        picker = figure.on_mouse_pick(self.on_picker_callback)
-        picker.tolerance = 0.01 # Decrease the tolerance, so that we can more easily select a precise point
+
+        def picker_callback(pick):
+            """ Picker callback: this get called when on pick events.
+            """
+            if pick.actor in plotter.sample_glyphs.actor.actors:
+                # Find which data point corresponds to the point picked:
+                # we have to account for the fact that each data point is
+                # represented by a glyph with several points
+                point_id = pick.point_id // plotter.sample_points.shape[0]
+
+                # If the no points have been selected, we have '-1'
+                if point_id != -1:
+                    # Retrieve the coordinates corresponding to that data
+                    # point
+                    x = plotter.sample_x[point_id]
+                    y = plotter.sample_y[point_id]
+                    z = plotter.sample_z[point_id]
+
+                    # Move the outline to the data point.
+                    # Add an outline to show the selected point and center it on the first
+                    # data point.
+                    plotter.set_outline(x, y, z)
+
+        picker = figure.on_mouse_pick(picker_callback)
+        picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
 
     def on_rdo_azimuth_clicked(self, button):
         print('on_rdo_azimuth {0}'.format(self.buttonGroup.checkedId()))
@@ -65,5 +90,5 @@ class MayaviController(QtGui.QWidget):
             label_text = 'View {0} points at attack azimuth:'.format(point_type)
             self.parent.lblAzimuth.setText(label_text)
 
-    def on_picker_callback(self):
-        pass
+
+
