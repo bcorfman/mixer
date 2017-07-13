@@ -30,6 +30,7 @@ class MayaviController(QtGui.QWidget):
         parent.rdoBurst.clicked.connect(self.on_rdo_burst)
         parent.btnSave.clicked.connect(self.on_btn_save_clicked)
         parent.btnHome.clicked.connect(self.on_btn_home_clicked)
+        parent.btnAxes.clicked.connect(self.on_btn_axes_clicked)
 
         model.attack_az = 45.0
         model.az_averaging = True
@@ -91,6 +92,9 @@ class MayaviController(QtGui.QWidget):
                                                'Images(*.png *.xpm *.jpg)')
         if filename:
             self.plotter.save_view_to_file(filename)
+
+    def on_btn_axes_clicked(self):
+        self.plotter.show_axes(self.parent.btnAxes.isChecked())
 
     def on_rdo_azimuth_clicked(self, button):
         print('on_rdo_azimuth {0}'.format(self.buttonGroup.checkedId()))

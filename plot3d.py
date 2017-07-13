@@ -42,6 +42,7 @@ class Plotter:
         self.sample_points = None
         self.sample_glyphs = None
         self.outline = None
+        self.axes = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -257,7 +258,8 @@ class Plotter:
         self.plot_munition()
         if self.model.dtl_file is not None:
             self.plot_detail()
-        # TODO: Put picker setup on mayavicontroller
+        self.axes = mlab.orientation_axes(figure=mlab.gcf())
+        self.axes.visible = False
         self.scene.disable_render = False  # reinstate display
         mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
         return mlab.gcf()
@@ -276,3 +278,6 @@ class Plotter:
 
     def save_view_to_file(self, filename):
         mlab.savefig(filename)
+
+    def show_axes(self, state):
+        self.axes.visible = state
