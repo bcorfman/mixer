@@ -270,3 +270,9 @@ class Plotter:
                                y - 0.5, y + 0.5,
                                z - 0.5, z + 0.5)
         self.outline.visible = True
+
+    def reset_view(self):
+        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
+
+    def save_view_to_file(self, filename):
+        mlab.savefig(filename)

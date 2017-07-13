@@ -105,7 +105,7 @@ class ParamController:
         file_prefix = self._get_file_match()
         plotter_win.setWindowTitle(file_prefix)
         self.plot_windows.append(plotter_win)
-        controller = MayaviController(self.model, plotter_win)
+        controller = MayaviController(self.model, plotter_win, self.start_dir)
         self.controllers.append(controller)
         plotter_win.show()
         QApplication.restoreOverrideCursor()

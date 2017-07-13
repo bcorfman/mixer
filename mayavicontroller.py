@@ -1,10 +1,11 @@
 from PyQt4 import QtGui
+from PyQt4.QtGui import QFileDialog
 from tvtk.pyface.api import DecoratedScene
 from plot3d import Plotter
 
 
 class MayaviController(QtGui.QWidget):
-    def __init__(self, model, parent):
+    def __init__(self, model, parent, working_dir):
         QtGui.QWidget.__init__(self, parent)
 
         # If you want to debug, beware that you need to remove the Qt
@@ -14,7 +15,9 @@ class MayaviController(QtGui.QWidget):
         # QtCore.pyqtRestoreInputHook()
 
         self.parent = parent
+        self.working_dir = working_dir
         scene = DecoratedScene(parent)
+        scene._tool_bar.setVisible(False)
         window = scene.control
         layout = QtGui.QVBoxLayout(parent.frmMayavi)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -25,6 +28,8 @@ class MayaviController(QtGui.QWidget):
         parent.rdoSample.setChecked(True)
         parent.rdoSample.clicked.connect(self.on_rdo_sample)
         parent.rdoBurst.clicked.connect(self.on_rdo_burst)
+        parent.btnSave.clicked.connect(self.on_btn_save_clicked)
+        parent.btnHome.clicked.connect(self.on_btn_home_clicked)
 
         model.attack_az = 45.0
         model.az_averaging = True
@@ -48,7 +53,8 @@ class MayaviController(QtGui.QWidget):
         model.az_averaging = False
 
         plotter = Plotter(parent, scene)
-        figure = plotter.plot_data(model)
+        self.plotter = plotter
+        figure = self.plotter.plot_data(model)
 
         def picker_callback(pick):
             """ Picker callback: this get called when on pick events.
@@ -72,8 +78,19 @@ class MayaviController(QtGui.QWidget):
                     # data point.
                     plotter.set_outline(x, y, z)
 
+                    parent.txtInfo.setText()
+
         picker = figure.on_mouse_pick(picker_callback)
         picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+
+    def on_btn_home_clicked(self):
+        self.plotter.reset_view()
+
+    def on_btn_save_clicked(self):
+        filename = QFileDialog.getSaveFileName(self.parent, 'Save Figure', self.working_dir,
+                                               'Images(*.png *.xpm *.jpg)')
+        if filename:
+            self.plotter.save_view_to_file(filename)
 
     def on_rdo_azimuth_clicked(self, button):
         print('on_rdo_azimuth {0}'.format(self.buttonGroup.checkedId()))
