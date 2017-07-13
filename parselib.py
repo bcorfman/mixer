@@ -539,6 +539,7 @@ class Detail(object):
         line = self.dtl.readline()
         tokens = line.split(':', 15)
         idx = int(tokens[0])
+        self.burstpoint = idx
         if not model.sample_loc.get(idx):
             model.sample_loc[idx] = defaultdict(dict)
         if not model.burst_loc.get(idx):
@@ -549,7 +550,6 @@ class Detail(object):
             model.frag_zones[idx] = defaultdict(dict)
         if not model.comp_pk.get(idx):
             model.comp_pk[idx] = defaultdict(dict)
-        self.burstpoint = idx
         self.az = int(float(tokens[14]))
         model.sample_loc[idx][self.az] = (float(tokens[2]), float(tokens[3]), float(tokens[4]))
         model.burst_loc[idx][self.az] = (float(tokens[8]), float(tokens[9]), float(tokens[10]))
@@ -594,6 +594,25 @@ class Detail(object):
         else:
             model.comp_pk[idx][self.az][cmp] = float(tokens[14])
         model.comp_num += 1
+
+    def validate(self, dtl_file):
+        """
+        Validates detailed output file to make sure it's the full detail version.
+
+        :param dtl_file: Detailed output filename.
+        :return: None
+        """
+        validated = False
+        with open(dtl_file) as self.dtl:
+            while 1:
+                line = self.dtl.readline()
+                if not line:
+                    break
+                elif line.startswith(':FRAGMENTATION'):
+                    validated = True
+                    break
+
+        return validated
 
     def read(self, dtl_file):
         """

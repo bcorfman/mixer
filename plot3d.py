@@ -36,9 +36,9 @@ class Plotter:
         self.target = None
         self.model = None
         self.rotation = 0
-        self.sample_x = []
-        self.sample_y = []
-        self.sample_z = []
+        self.sel_x = []
+        self.sel_y = []
+        self.sel_z = []
         self.sample_points = None
         self.sample_glyphs = None
         self.outline = None
@@ -228,21 +228,24 @@ class Plotter:
                     label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
                     mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
 
-    def plot_detail(self):
-        model = self.model
-        self.sample_x, self.sample_y, self.sample_z = [], [], []
-        for c in range(1, model.comp_num):
-            pt = model.sample_loc[c][0]
-            self.sample_x.append(pt[0])
-            self.sample_y.append(pt[1])
-            self.sample_z.append(pt[2])
-        self.sample_glyphs = mlab.points3d(self.sample_x, self.sample_y, self.sample_z, color=(1, 1, 1),
+    def plot_detail(self, az, points):
+        """
+        :param az: azimuth value used as an index for the points dictionary.
+        :param points: dictionary that holds either sample point or burst point locations
+        :return: None
+        """
+        self.sel_x, self.sel_y, self.sel_z = [], [], []
+        for _, key in enumerate(points):
+            self.sel_x.append(points[key][az][0])
+            self.sel_y.append(points[key][az][1])
+            self.sel_z.append(points[key][az][2])
+        self.sample_glyphs = mlab.points3d(self.sel_x, self.sel_y, self.sel_z, color=(1, 1, 1),
                                            scale_factor=0.75)
         # Here, we grab the points describing the individual glyph, to figure
         # out how many points are in an individual glyph.
         self.sample_points = self.sample_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
 
-    def plot_data(self, model):
+    def plot_data(self, model, az, points):
         self.model = model
         self.engine = Engine()
         self.engine.start()
@@ -257,7 +260,7 @@ class Plotter:
         self.plot_av()
         self.plot_munition()
         if self.model.dtl_file is not None:
-            self.plot_detail()
+            self.plot_detail(az, points)
         self.axes = mlab.orientation_axes(figure=mlab.gcf())
         self.axes.visible = False
         self.scene.disable_render = False  # reinstate display

@@ -32,8 +32,6 @@ class MayaviController(QtGui.QWidget):
         parent.btnHome.clicked.connect(self.on_btn_home_clicked)
         parent.btnAxes.clicked.connect(self.on_btn_axes_clicked)
 
-        model.attack_az = 45.0
-        model.az_averaging = True
         if model.az_averaging:
             layout = parent.frmAzimuth.layout()
             point_type = 'sample' if parent.rdoSample.isChecked() else 'burst'
@@ -50,12 +48,12 @@ class MayaviController(QtGui.QWidget):
                     rdo_button.setChecked(True)
         else:
             parent.frmAzimuth.setVisible(False)
-        model.attack_az = 0.0
-        model.az_averaging = False
 
         plotter = Plotter(parent, scene)
         self.plotter = plotter
-        figure = self.plotter.plot_data(model)
+        points = model.get_sample_points() if parent.rdoSample.isChecked() else model.get_burst_points()
+        az = self.buttonGroup.checkedId() if model.az_averaging else model.attack_az
+        figure = self.plotter.plot_data(model, az, points)
 
         def picker_callback(pick):
             """ Picker callback: this get called when on pick events.
@@ -70,9 +68,9 @@ class MayaviController(QtGui.QWidget):
                 if point_id != -1:
                     # Retrieve the coordinates corresponding to that data
                     # point
-                    x = plotter.sample_x[point_id]
-                    y = plotter.sample_y[point_id]
-                    z = plotter.sample_z[point_id]
+                    x = points[point_id]
+                    y = points[point_id]
+                    z = points[point_id]
 
                     # Move the outline to the data point.
                     # Add an outline to show the selected point and center it on the first

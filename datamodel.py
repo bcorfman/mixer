@@ -65,7 +65,11 @@ class DataModel(object):
             Matrix(self).read(mtx_file)
             self.transform_matrix()
         if exists(self.dtl_file):
-            Detail(self).read(self.dtl_file)
+            detail = Detail(self)
+            if detail.validate(self.dtl_file):
+                detail.read(self.dtl_file)
+            else:
+                raise IOError(".dtl file does not have the full level of detail.")
         self.transform_blast_volumes()
         self.transform_surfaces()
         self.find_closest_az_and_el_indices()
@@ -154,3 +158,9 @@ class DataModel(object):
         # first item in deltas (smallest delta after sorting) and the second item in the pair (index)
         self.az_idx = az_delta_idx_pairs[0][1]
         self.el_idx = el_delta_idx_pairs[0][1]
+
+    def get_sample_points(self):
+        return self.sample_loc
+
+    def get_burst_points(self):
+        return self.burst_loc
