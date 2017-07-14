@@ -65,11 +65,12 @@ class MayaviController(QtGui.QWidget):
 
                 # If the no points have been selected, we have '-1'
                 if point_id != -1:
+                    pid = point_id + 1
                     # Retrieve the coordinates corresponding to that data
                     # point -- point ids start at 1, so add 1 to 0-based indexing.
-                    x = points[point_id + 1][az][0]
-                    y = points[point_id + 1][az][1]
-                    z = points[point_id + 1][az][2]
+                    x = points[pid][az][0]
+                    y = points[pid][az][1]
+                    z = points[pid][az][2]
 
                     # Move the outline to the data point.
                     # Add an outline to show the selected point and center it on the first
@@ -77,9 +78,19 @@ class MayaviController(QtGui.QWidget):
                     plotter.set_outline(x, y, z)
 
                     if parent.rdoSample.isChecked():
-                        parent.txtInfo.setPlainText('Sample point {0}:'.format(point_id + 1))
+                        output = 'Sample point {0}:\n'.format(pid)
                     else:
-                        parent.txtInfo.setPlainText('Burst point {0}:'.format(point_id + 1))
+                        output = 'Burst point {0}:\n'.format(pid)
+
+                    for i, c in enumerate(model.comp_list):
+                        cid = i + 1  # component numbers start at 1
+                        if cid in model.dh_comps:
+                            output += ' {0} DH PK: {1}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                        elif cid in model.blast_comps:
+                            output += ' {0} Blast PK: {1}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                        else:
+                            output += ' {0} Frag PK: {1}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                    parent.txtInfo.setPlainText(output)
 
         picker = figure.on_mouse_pick(picker_callback)
         picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
