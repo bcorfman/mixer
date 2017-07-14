@@ -159,6 +159,7 @@ class Surfaces(object):
             self.model = model
         model = self.model
         self.srf = None
+        model.surf_names = []
         model.surfaces = []
         model.srf_min_x, model.srf_max_x = sys.maxsize, -sys.maxsize
         model.srf_min_y, model.srf_max_y = sys.maxsize, -sys.maxsize
@@ -186,6 +187,7 @@ class Surfaces(object):
                 x2, y2, z2 = float(tokens[3]), float(tokens[4]), float(tokens[5])
                 x3, y3, z3 = float(tokens[6]), float(tokens[7]), float(tokens[8])
                 x4, y4, z4 = float(tokens[9]), float(tokens[10]), float(tokens[11])
+                model.surf_names.append(tokens[14])
                 model.surfaces.extend([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3], [x4, y4, z4]])
                 model.srf_min_x = min(model.srf_min_x, x1, x2, x3, x4)
                 model.srf_max_x = max(model.srf_max_x, x1, x2, x3, x4)
@@ -210,6 +212,7 @@ class Output(object):
         model.av_file = ''
         model.srf_file = ''
         model.dh_comps = None
+        model.blast_comps = None
         self.case_completed = False
 
     def _parse_av_file(self, line):
@@ -257,6 +260,7 @@ class Output(object):
     # noinspection PyUnusedLocal
     def _parse_blast_components(self, line):
         model = self.model
+        model.blast_comps = set()
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
@@ -265,7 +269,9 @@ class Output(object):
             idx = int(tokens[CMPID])
             r1, r2, r3, z1, z2 = (float(tokens[R1]), float(tokens[R2]), float(tokens[R3]), float(tokens[Z1]),
                                   float(tokens[Z2]))
-            model.blast_vol[idx] = [r1, r2, r3, z1, z2]
+            if not (r1 == 0.0 and r2 == 0.0 and r3 == 0.0 and z1 == 0.0 and z2 == 0.0):
+                model.blast_comps.add(idx)
+                model.blast_vol[idx] = [r1, r2, r3, z1, z2]
             if r1 == 0.0 and r2 == 0.0 and z1 == 0.0:  # sphere
                 line = self.out.readline().strip()  # this line contains the extra "Sphere" field
                 if line == "":  # extra insurance in case there's a blank line; exit early
@@ -494,8 +500,7 @@ class Detail(object):
             self.model = self
         else:
             self.model = model
-        self.dh_comps = []
-        self.blast_comps = []
+        self.dh_comps = set()
         model = self.model
         if az_averaging is not None:
             model.az_averaging = az_averaging
@@ -539,6 +544,8 @@ class Detail(object):
         line = self.dtl.readline()
         tokens = line.split(':', 15)
         idx = int(tokens[0])
+        if idx < self.burstpoint:
+            return False
         self.burstpoint = idx
         if not model.sample_loc.get(idx):
             model.sample_loc[idx] = defaultdict(dict)
@@ -557,6 +564,7 @@ class Detail(object):
         model.frag_zones[idx][self.az] = {}
         model.comp_pk[idx][self.az] = {}
         model.comp_num = 1
+        return True
 
     def _parse_fragmentation(self, line):
         model = self.model
@@ -578,6 +586,7 @@ class Detail(object):
             zone_info.append((zone_num, lower_zone_angle, upper_zone_angle))
             curr_frag_zone += 1
         model.frag_zones[idx][self.az][model.comp_num] = zone_info
+        return True
 
     # noinspection PyUnusedLocal
     def _parse_component(self, line):
@@ -589,11 +598,12 @@ class Detail(object):
         cmp = model.comp_num
         if model.comp_num in model.dh_comps:
             model.comp_pk[idx][self.az][cmp] = float(tokens[12])
-        elif model.comp_num in model.blast_comps:
+        elif model.comp_num in model.blast_vol.keys():
             model.comp_pk[idx][self.az][cmp] = float(tokens[13])
         else:
             model.comp_pk[idx][self.az][cmp] = float(tokens[14])
         model.comp_num += 1
+        return True
 
     def validate(self, dtl_file):
         """
@@ -649,6 +659,9 @@ class Detail(object):
                     break
                 for key in match:
                     if line.startswith(key):
-                        match[key](line)
-                        break
+                        result = match[key](line)
+                        if result:
+                            break
+                        else:
+                            return
 

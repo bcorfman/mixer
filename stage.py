@@ -1,5 +1,6 @@
 import sys
 import os
+import pyqt4_hook
 from PyQt4 import QtGui, QtCore
 from paramcontroller import ParamController
 from uiloader import load_ui_widget

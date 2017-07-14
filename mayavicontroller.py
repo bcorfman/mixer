@@ -57,11 +57,11 @@ class MayaviController(QtGui.QWidget):
 
         def picker_callback(pick):
             """ This get called on pick events. """
-            if pick.actor in plotter.sample_glyphs.actor.actors:
+            if pick.actor in plotter.point_glyphs.actor.actors:
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is
                 # represented by a glyph with several points
-                point_id = pick.point_id // plotter.sample_points.shape[0]
+                point_id = pick.point_id // plotter.point_array.shape[0]
 
                 # If the no points have been selected, we have '-1'
                 if point_id != -1:
@@ -78,18 +78,30 @@ class MayaviController(QtGui.QWidget):
                     plotter.set_outline(x, y, z)
 
                     if parent.rdoSample.isChecked():
-                        output = 'Sample point {0}:\n'.format(pid)
+                        output = 'Sample point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
                     else:
-                        output = 'Burst point {0}:\n'.format(pid)
+                        output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
 
+                    frag_comps = [c.id for c in model.comp_list if c.id != 0]
                     for i, c in enumerate(model.comp_list):
                         cid = i + 1  # component numbers start at 1
                         if cid in model.dh_comps:
-                            output += ' {0} DH PK: {1}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                            output += '   DH PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                            surf_name = model.surf_names[model.surface_hit[pid][az]]
+                            output += '      Surf hit: {0}\n'.format(surf_name)
                         elif cid in model.blast_comps:
-                            output += ' {0} Blast PK: {1}\n'.format(c.name, model.comp_pk[pid][az][cid])
-                        else:
-                            output += ' {0} Frag PK: {1}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                            output += '   Blast PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                        elif cid in frag_comps:
+                            output += '   Frag PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                            output += '      Zone '
+                            zones = model.frag_zones[pid][az][cid]
+                            if zones:
+                                output += '{0}'.format(zones[0][0])
+                                for z in range(1, len(zones) - 1):
+                                    output += ', {0}'.format(zones[z][0])
+                            else:
+                                output += 'None'
+                            output += '\n'
                     parent.txtInfo.setPlainText(output)
 
         picker = figure.on_mouse_pick(picker_callback)
@@ -121,6 +133,5 @@ class MayaviController(QtGui.QWidget):
             point_type = 'sample' if self.parent.rdoSample.isChecked() else 'burst'
             label_text = 'View {0} points at attack azimuth:'.format(point_type)
             self.parent.lblAzimuth.setText(label_text)
-
 
 

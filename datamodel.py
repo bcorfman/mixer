@@ -20,6 +20,7 @@ class DataModel(object):
         self.gridlines_range_mid, self.gridlines_defl_mid = None, None
         self.cell_size_range, self.cell_size_defl = None, None
         self.pks = None
+        self.surf_names = None
         self.surfaces = None
         self.srf_min_x, self.srf_max_x = None, None
         self.srf_min_y, self.srf_max_y = None, None
@@ -49,7 +50,7 @@ class DataModel(object):
         self.tgt_center = None
         self.volume_radius = None
         self.mtx_kill_id = None
-        self.blast_comps = []
+        self.blast_comps = None
         self.dh_comps = []
         self.dtl_file = None
         self.comp_num = None
@@ -76,7 +77,10 @@ class DataModel(object):
 
     def transform_blast_volumes(self):
         kill_comps = self.extract_components(self.mtx_kill_id)
-        self.blast_comps = set(kill_comps).intersection(self.blast_vol.keys())
+        if kill_comps:
+            self.blast_comps = set(kill_comps).intersection(self.blast_vol.keys())
+        else:
+            self.blast_comps = self.blast_vol.keys()
 
     def transform_surfaces(self):
         """

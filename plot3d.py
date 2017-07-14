@@ -39,8 +39,8 @@ class Plotter:
         self.sel_x = []
         self.sel_y = []
         self.sel_z = []
-        self.sample_points = None
-        self.sample_glyphs = None
+        self.point_array = None
+        self.point_glyphs = None
         self.outline = None
         self.axes = None
 
@@ -116,9 +116,9 @@ class Plotter:
         t = tvtk.Transform()
         t.rotate_x(90.0)
         p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
-        for i in model.blast_comps:
-            comp = model.comp_list[i]
-            r1, r2, r3, z1, z2 = model.blast_vol[i]
+        for _, bidx in enumerate(model.blast_comps):
+            comp = model.comp_list[bidx - 1]  # TODO: this is 0 indexed; should fix this
+            r1, r2, r3, z1, z2 = model.blast_vol[bidx]  # 1 indexed
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
                 sphere = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, phi_resolution=50,
@@ -239,11 +239,11 @@ class Plotter:
             self.sel_x.append(points[key][az][0])
             self.sel_y.append(points[key][az][1])
             self.sel_z.append(points[key][az][2])
-        self.sample_glyphs = mlab.points3d(self.sel_x, self.sel_y, self.sel_z, color=(1, 1, 1),
-                                           scale_factor=0.75)
+        self.point_glyphs = mlab.points3d(self.sel_x, self.sel_y, self.sel_z, color=(1, 1, 1), scale_factor=0.75)
         # Here, we grab the points describing the individual glyph, to figure
         # out how many points are in an individual glyph.
-        self.sample_points = self.sample_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
+        self.point_array = self.point_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
+        # mlab.points3d([-0.19, -0.19], [-5.94, 5.87], [0, 7.6], color=(0, 1, 0), scale_factor=0.75)
 
     def plot_data(self, model, az, points):
         self.model = model
@@ -255,7 +255,7 @@ class Plotter:
         if self.model.pks is not None:
             self.plot_matrix_file()  # matrix can be plotted if it was read in
         self.plot_srf_file()
-        if self.model.blast_vol:
+        if self.model.blast_comps:
             self.plot_blast_volume()  # plot blast volume if blast damage was included in output
         self.plot_av()
         self.plot_munition()
@@ -271,6 +271,7 @@ class Plotter:
         if self.outline is None:
             self.outline = mlab.outline(line_width=3)
             # self.outline.outline_mode = 'cornered'
+            self.outline.manual_bounds = True
         self.outline.bounds = (x - 0.5, x + 0.5,
                                y - 0.5, y + 0.5,
                                z - 0.5, z + 0.5)
