@@ -66,7 +66,7 @@ class MayaviController(QtGui.QWidget):
                 # If the no points have been selected, we have '-1'
                 if point_id != -1:
                     # Retrieve the coordinates corresponding to that data
-                    # point
+                    # point -- point ids start at 1, so add 1 to 0-based indexing.
                     x = points[point_id + 1][az][0]
                     y = points[point_id + 1][az][1]
                     z = points[point_id + 1][az][2]
