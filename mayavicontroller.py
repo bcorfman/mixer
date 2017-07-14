@@ -52,12 +52,11 @@ class MayaviController(QtGui.QWidget):
         plotter = Plotter(parent, scene)
         self.plotter = plotter
         points = model.get_sample_points() if parent.rdoSample.isChecked() else model.get_burst_points()
-        az = self.buttonGroup.checkedId() if model.az_averaging else model.attack_az
+        az = self.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         figure = self.plotter.plot_data(model, az, points)
 
         def picker_callback(pick):
-            """ Picker callback: this get called when on pick events.
-            """
+            """ This get called on pick events. """
             if pick.actor in plotter.sample_glyphs.actor.actors:
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is
@@ -68,16 +67,19 @@ class MayaviController(QtGui.QWidget):
                 if point_id != -1:
                     # Retrieve the coordinates corresponding to that data
                     # point
-                    x = points[point_id]
-                    y = points[point_id]
-                    z = points[point_id]
+                    x = points[point_id + 1][az][0]
+                    y = points[point_id + 1][az][1]
+                    z = points[point_id + 1][az][2]
 
                     # Move the outline to the data point.
                     # Add an outline to show the selected point and center it on the first
                     # data point.
                     plotter.set_outline(x, y, z)
 
-                    parent.txtInfo.setText()
+                    if parent.rdoSample.isChecked():
+                        parent.txtInfo.setPlainText('Sample point {0}:'.format(point_id + 1))
+                    else:
+                        parent.txtInfo.setPlainText('Burst point {0}:'.format(point_id + 1))
 
         picker = figure.on_mouse_pick(picker_callback)
         picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
