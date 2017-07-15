@@ -137,3 +137,4 @@ class ParamController:
             self.dlg.lblErrorReport.setText(str(e))
             self.dlg.btnDisplay.setEnabled(False)
         QApplication.restoreOverrideCursor()
+

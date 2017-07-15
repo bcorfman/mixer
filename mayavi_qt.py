@@ -1,6 +1,5 @@
 from PyQt4 import QtGui
 from tvtk.pyface.api import DecoratedScene
-from plot3d import Plotter
 
 
 class MayaviQWidget(QtGui.QWidget):

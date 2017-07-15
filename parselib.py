@@ -269,6 +269,7 @@ class Output(object):
             idx = int(tokens[CMPID])
             r1, r2, r3, z1, z2 = (float(tokens[R1]), float(tokens[R2]), float(tokens[R3]), float(tokens[Z1]),
                                   float(tokens[Z2]))
+
             if not (r1 == 0.0 and r2 == 0.0 and r3 == 0.0 and z1 == 0.0 and z2 == 0.0):
                 model.blast_comps.add(idx)
                 model.blast_vol[idx] = [r1, r2, r3, z1, z2]
@@ -511,7 +512,7 @@ class Detail(object):
         if dh_comps is not None:
             model.dh_comps = dh_comps
         self.dtl = None
-        self.burstpoint = None
+        self.bp_idx = -1
         self.step = None
         self.az = None
         model.radius = None
@@ -544,9 +545,9 @@ class Detail(object):
         line = self.dtl.readline()
         tokens = line.split(':', 15)
         idx = int(tokens[0])
-        if idx < self.burstpoint:
+        if idx < self.bp_idx:
             return False
-        self.burstpoint = idx
+        self.bp_idx = idx
         if not model.sample_loc.get(idx):
             model.sample_loc[idx] = defaultdict(dict)
         if not model.burst_loc.get(idx):
@@ -568,7 +569,7 @@ class Detail(object):
 
     def _parse_fragmentation(self, line):
         model = self.model
-        idx = self.burstpoint
+        idx = self.bp_idx
         tokens = line.split(':')
         num_frag_zones = int(tokens[2])
         curr_frag_zone = 0
@@ -594,11 +595,11 @@ class Detail(object):
         self.dtl.readline()
         line = self.dtl.readline()
         tokens = line.split(':', 15)
-        idx = self.burstpoint
+        idx = self.bp_idx
         cmp = model.comp_num
         if model.comp_num in model.dh_comps:
             model.comp_pk[idx][self.az][cmp] = float(tokens[12])
-        elif model.comp_num in model.blast_vol.keys():
+        elif model.comp_num in model.blast_comps:
             model.comp_pk[idx][self.az][cmp] = float(tokens[13])
         else:
             model.comp_pk[idx][self.az][cmp] = float(tokens[14])
@@ -659,9 +660,7 @@ class Detail(object):
                     break
                 for key in match:
                     if line.startswith(key):
-                        result = match[key](line)
-                        if result:
+                        if match[key](line):
                             break
                         else:
                             return
-

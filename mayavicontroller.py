@@ -8,12 +8,6 @@ class MayaviController(QtGui.QWidget):
     def __init__(self, model, parent, working_dir):
         QtGui.QWidget.__init__(self, parent)
 
-        # If you want to debug, beware that you need to remove the Qt
-        # input hook.
-        # QtCore.pyqtRemoveInputHook()
-        # import pdb ; pdb.set_trace()
-        # QtCore.pyqtRestoreInputHook()
-
         self.parent = parent
         self.working_dir = working_dir
         scene = DecoratedScene(parent)
@@ -102,6 +96,7 @@ class MayaviController(QtGui.QWidget):
                             else:
                                 output += 'None'
                             output += '\n'
+
                     parent.txtInfo.setPlainText(output)
 
         picker = figure.on_mouse_pick(picker_callback)
