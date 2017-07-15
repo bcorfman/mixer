@@ -5,7 +5,6 @@ import math
 
 def rotate_pt_around_yz_axes(x, y, z, aof, attack_az):
     """
-    Written by Brandon Corfman.
     :param x: X coordinate of point
     :param y: Y coordinate of point
     :param z: Z coordinate of point
