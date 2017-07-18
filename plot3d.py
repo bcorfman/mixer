@@ -2,6 +2,7 @@
 import math
 from numpy import array, full, eye
 import util
+from tvtk.common import configure_input, configure_port_input_data, configure_connection
 from tvtk.api import tvtk
 from mayavi import mlab
 from mayavi.api import Engine
@@ -133,45 +134,50 @@ class Plotter:
                                             end_theta=180, phi_resolution=150, theta_resolution=150)
                     cyl = tvtk.CylinderSource(center=(comp.x, (z1 + z_offset) / 2.0 + 0.01, comp.y), radius=r1,
                                               height=z1 + z_offset, resolution=150, capping=True)
-                    tri1 = tvtk.TriangleFilter(input_connection=cap.output_port)
-                    tri2 = tvtk.TriangleFilter(input_connection=cyl.output_port)
-                    boolean_op = tvtk.BooleanOperationPolyDataFilter()
-                    boolean_op.operation = 'difference'
-                    boolean_op.add_input_connection(0, tri1.output_port)
-                    boolean_op.add_input_connection(1, tri2.output_port)
-                    boolean_op.update()
+                    tri1 = tvtk.TriangleFilter()
+                    configure_connection(tri1, cap)
+                    tri2 = tvtk.TriangleFilter()
+                    configure_connection(tri2, cyl)
+                    combined_source = tvtk.BooleanOperationPolyDataFilter()
+                    combined_source.set_operation_to_difference()
+                    configure_port_input_data(combined_source, 0, tri1)
+                    configure_port_input_data(combined_source, 1, tri2)
+                    combined_source.update()
                     lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
                                                     height=z1, resolution=150, capping=True)
-                    combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
+                    combined_source.set_operation_to_union()
+                    configure_input(combined_source, lower_cyl)
                     translate_mat = eye(4)
                     translate_mat[0, 3] = comp.x
                     translate_mat[1, 3] = z_offset
                     translate_mat[2, 3] = comp.y
                     translate = tvtk.Transform()
                     translate.set_matrix(translate_mat.flatten())
-                    translater = tvtk.TransformPolyDataFilter(input=boolean_op.output)
-                    translater.transform = translate
-                    combined_source.add_input(translater.output)
+                    translator = tvtk.TransformPolyDataFilter()
+                    translator.transform = translate
+                    configure_input(combined_source, translator)
                 else:  # double cylinder merged with sphere cap
                     lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
                                                     height=z1, resolution=150, capping=True)
                     # add lower cylinder to combined volume
-                    combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
+                    combined_source = tvtk.BooleanOperationPolyDataFilter()
+                    combined_source.operation = 'union'
+                    configure_input(combined_source, lower_cyl)
+                    combined_source.update()
 
                     z_join = math.sqrt(r3 * r3 - r2 * r2)
                     upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z_join + z2 - z1) / 2.0) + z1, comp.y),
                                                     radius=r2, height=z_join + z2 - z1, resolution=150, capping=False)
                     cap = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, start_theta=0,
                                             end_theta=180, phi_resolution=150, theta_resolution=150)
-                    tri1 = tvtk.TriangleFilter(input_connection=upper_cyl.output_port)
-                    tri2 = tvtk.TriangleFilter(input_connection=cap.output_port)
-                    boolean_op = tvtk.BooleanOperationPolyDataFilter()
-                    boolean_op.operation = 'intersection'
-                    boolean_op.add_input_connection(0, tri1.output_port)
-                    boolean_op.add_input_connection(1, tri2.output_port)
-                    boolean_op.update()
-                    # add resulting intersecting cap to combined volume
-                    combined_source.add_input(boolean_op.output)
+                    tri1 = tvtk.TriangleFilter()
+                    configure_connection(tri1, upper_cyl)
+                    tri2 = tvtk.TriangleFilter()
+                    configure_connection(tri2, cap)
+                    combined_source.operation = 'intersection'
+                    configure_port_input_data(combined_source, 1, tri1)
+                    configure_port_input_data(combined_source, 2, tri2)
+                    combined_source.update()
 
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
                 surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)

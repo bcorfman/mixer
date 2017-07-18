@@ -524,6 +524,7 @@ class Detail(object):
         model.comp_pk = {}
         model.dh_include_frag_effects = None
         model.comp_num = None
+        self.frag_comps = [c.id for c in model.comp_list if c.id != 0]
 
     # noinspection PyUnusedLocal
     def _parse_radius(self, line):
@@ -597,11 +598,11 @@ class Detail(object):
         tokens = line.split(':', 15)
         idx = self.bp_idx
         cmp = model.comp_num
-        if model.comp_num in model.dh_comps:
+        if cmp in model.dh_comps:
             model.comp_pk[idx][self.az][cmp] = float(tokens[12])
-        elif model.comp_num in model.blast_comps:
+        elif cmp in model.blast_comps:
             model.comp_pk[idx][self.az][cmp] = float(tokens[13])
-        else:
+        elif cmp in self.frag_comps:
             model.comp_pk[idx][self.az][cmp] = float(tokens[14])
         model.comp_num += 1
         return True
