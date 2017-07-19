@@ -1,6 +1,15 @@
 import sys
 import unittest
 import math
+from tvtk.common import is_old_pipeline
+
+
+def configure_port_input_connection(obj, port, data):
+    """ Configure the input data for vtk pipeline object obj at port."""
+    if is_old_pipeline():
+        obj.set_input_connection(port, data)
+    else:
+        obj.set_input_data(port, data.output)
 
 
 def rotate_pt_around_yz_axes(x, y, z, aof, attack_az):

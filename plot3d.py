@@ -2,7 +2,7 @@
 import math
 from numpy import array, full, eye
 import util
-from tvtk.common import configure_input, configure_port_input_data, configure_connection
+from tvtk.common import configure_input, configure_connection
 from tvtk.api import tvtk
 from mayavi import mlab
 from mayavi.api import Engine
@@ -140,8 +140,8 @@ class Plotter:
                     configure_connection(tri2, cyl)
                     combined_source = tvtk.BooleanOperationPolyDataFilter()
                     combined_source.set_operation_to_difference()
-                    configure_port_input_data(combined_source, 0, tri1)
-                    configure_port_input_data(combined_source, 1, tri2)
+                    util.configure_port_input_connection(combined_source, 0, tri1)
+                    util.configure_port_input_connection(combined_source, 1, tri2)
                     combined_source.update()
                     lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
                                                     height=z1, resolution=150, capping=True)
@@ -175,8 +175,8 @@ class Plotter:
                     tri2 = tvtk.TriangleFilter()
                     configure_connection(tri2, cap)
                     combined_source.operation = 'intersection'
-                    configure_port_input_data(combined_source, 1, tri1)
-                    configure_port_input_data(combined_source, 2, tri2)
+                    util.configure_port_input_connection(combined_source, 0, tri1)
+                    util.configure_port_input_connection(combined_source, 1, tri2)
                     combined_source.update()
 
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
