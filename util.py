@@ -7,7 +7,7 @@ from tvtk.common import is_old_pipeline
 def configure_port_input_connection(obj, port, data):
     """ Configure the input data for vtk pipeline object obj at port."""
     if is_old_pipeline():
-        obj.set_input_connection(port, data)
+        obj.set_input_connection(port, data.output_port)
     else:
         obj.set_input_data(port, data.output)
 

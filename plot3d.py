@@ -139,13 +139,13 @@ class Plotter:
                     tri2 = tvtk.TriangleFilter()
                     configure_connection(tri2, cyl)
                     combined_source = tvtk.BooleanOperationPolyDataFilter()
-                    combined_source.set_operation_to_difference()
+                    combined_source.operation = 'difference'
                     util.configure_port_input_connection(combined_source, 0, tri1)
                     util.configure_port_input_connection(combined_source, 1, tri2)
                     combined_source.update()
                     lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
                                                     height=z1, resolution=150, capping=True)
-                    combined_source.set_operation_to_union()
+                    combined_source.operation = 'union'
                     configure_input(combined_source, lower_cyl)
                     translate_mat = eye(4)
                     translate_mat[0, 3] = comp.x
@@ -157,14 +157,6 @@ class Plotter:
                     translator.transform = translate
                     configure_input(combined_source, translator)
                 else:  # double cylinder merged with sphere cap
-                    lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
-                                                    height=z1, resolution=150, capping=True)
-                    # add lower cylinder to combined volume
-                    combined_source = tvtk.BooleanOperationPolyDataFilter()
-                    combined_source.operation = 'union'
-                    configure_input(combined_source, lower_cyl)
-                    combined_source.update()
-
                     z_join = math.sqrt(r3 * r3 - r2 * r2)
                     upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z_join + z2 - z1) / 2.0) + z1, comp.y),
                                                     radius=r2, height=z_join + z2 - z1, resolution=150, capping=False)
@@ -174,17 +166,24 @@ class Plotter:
                     configure_connection(tri1, upper_cyl)
                     tri2 = tvtk.TriangleFilter()
                     configure_connection(tri2, cap)
-                    combined_source.operation = 'intersection'
-                    util.configure_port_input_connection(combined_source, 0, tri1)
-                    util.configure_port_input_connection(combined_source, 1, tri2)
+                    cylinder_with_cap = tvtk.BooleanOperationPolyDataFilter()
+                    cylinder_with_cap.operation = 'intersection'
+                    util.configure_port_input_connection(cylinder_with_cap, 0, tri1)
+                    util.configure_port_input_connection(cylinder_with_cap, 1, tri2)
+                    cylinder_with_cap.update()
+
+                    lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
+                                                    height=z1, resolution=150, capping=True)
+                    combined_source = tvtk.BooleanOperationPolyDataFilter()
+                    combined_source.operation = 'union'
+                    util.configure_port_input_connection(combined_source, 0, lower_cyl)
+                    util.configure_port_input_connection(combined_source, 1, cylinder_with_cap)
                     combined_source.update()
 
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
                 surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
                 surf.actor.actor.property = p  # add color
                 surf.actor.actor.user_transform = t  # rotate the volume
-                # mlab.outline(surf)
-                # mlab.axes(surf)
 
     def plot_munition(self):
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,
