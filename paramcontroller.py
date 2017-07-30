@@ -10,27 +10,34 @@ from mayavicontroller import MayaviController
 
 
 class ParamController:
-    def __init__(self, dlg, start_dir, out_files):
+    def __init__(self, app, dlg, start_dir, out_files):
         self.win = None
         self.start_dir = start_dir
         self.out_files = out_files
         self.dlg = dlg
-        self.dlg.lblDirectory = TextLabel(self.dlg, objectName='lblDirectory')
-        self.dlg.lblDirectory.setText('Directory: ' + start_dir)
-        self.dlg.lblDirectory.setGeometry(30, 20, 251, 16)
+        dlg.lblDirectory = TextLabel(self.dlg, objectName='lblDirectory')
+        dlg.lblDirectory.setText('Directory: ' + start_dir)
+        dlg.lblDirectory.setGeometry(30, 20, 251, 16)
         choose_btn = self.dlg.lblLayout.itemAt(0).widget()
-        self.dlg.lblLayout.removeWidget(choose_btn)
-        self.dlg.lblLayout.addWidget(self.dlg.lblDirectory)
-        self.dlg.lblLayout.addWidget(choose_btn)
-        self.dlg.frame.setLayout(self.dlg.lblLayout)
-        self.ini_parser = IniParser(self.dlg)
+        dlg.lblLayout.removeWidget(choose_btn)
+        dlg.lblLayout.addWidget(dlg.lblDirectory)
+        dlg.lblLayout.addWidget(choose_btn)
+        dlg.frame.setLayout(dlg.lblLayout)
+        dlg.btnDisplay.setEnabled(False)
+        self.ini_parser = IniParser(dlg)
         self.ini_parser.dir = start_dir
         self._populate_list_box()
-        self.dlg.btnDisplay.setEnabled(False)
         self.plot_windows = []
         self.controllers = []
         self.model = None
         self.stop_events = False
+        dlg.btnChoose.clicked.connect(self.on_btn_choose)
+        dlg.lstCase.itemClicked.connect(self.on_case_item_clicked)
+        dlg.btnDisplay.clicked.connect(self.on_btn_display)
+        dlg.cboAOF.currentIndexChanged.connect(self.on_dialog_changed)
+        dlg.cboTermVel.currentIndexChanged.connect(self.on_dialog_changed)
+        dlg.cboBurstHeight.currentIndexChanged.connect(self.on_dialog_changed)
+        app.aboutToQuit.connect(self.about_to_quit)
 
     def _populate_list_box(self):
         cases = set((x.rsplit('-', 2)[0].rsplit('_', 2)[0] for x in self.out_files))
@@ -42,27 +49,28 @@ class ParamController:
         self.dlg.cboBurstHeight.clear()
 
     def _populate_combo_boxes(self, case_prefix):
+        dlg = self.dlg
         self.stop_events = True
         aofs = set((x.rsplit('-', 2)[0].rsplit('_', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
         vels = set((x.rsplit('-', 2)[1] for x in self.out_files if x.startswith(case_prefix)))
         heights = set((x.rsplit('-', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
-        self.dlg.cboAOF.clear()
-        self.dlg.cboTermVel.clear()
-        self.dlg.cboBurstHeight.clear()
+        dlg.cboAOF.clear()
+        dlg.cboTermVel.clear()
+        dlg.cboBurstHeight.clear()
         if aofs:
             lst = [(float(aof), aof) for aof in aofs]
             lst = [aof for _, aof in sorted(lst)]
-            self.dlg.cboAOF.addItems(lst)
+            dlg.cboAOF.addItems(lst)
         if vels:
             lst = [(float(vel), vel) for vel in vels]
             lst = [vel for _, vel in sorted(lst)]
-            self.dlg.cboTermVel.addItems(lst)
+            dlg.cboTermVel.addItems(lst)
         if heights:
             lst = [(float(h), h) for h in heights]
             lst = [h for _, h in sorted(lst)]
-            self.dlg.cboBurstHeight.addItems(lst)
-        self.dlg.cboPkSurface.clear()
-        self.dlg.cboPkSurface.addItems(['Matrix'])
+            dlg.cboBurstHeight.addItems(lst)
+        dlg.cboPkSurface.clear()
+        dlg.cboPkSurface.addItems(['Matrix'])
         self.stop_events = False
 
     def on_btn_choose(self):
@@ -77,6 +85,12 @@ class ParamController:
             self.out_files = [os.path.splitext(x)[0] for x in os.listdir(d) if x.endswith('.out')]
             self._populate_list_box()
             QApplication.restoreOverrideCursor()
+
+    # TODO: How to do this effectively -- there are multiple links between objects
+    # TODO: to cleanup before they will get GC'd.
+    def remove_controller(self, ctlr):
+        self.controllers.remove(ctlr)
+        del ctlr
 
     # noinspection PyUnusedLocal
     def on_case_item_clicked(self, item):
@@ -105,7 +119,7 @@ class ParamController:
         file_prefix = self._get_file_match()
         plotter_win.setWindowTitle(file_prefix)
         self.plot_windows.append(plotter_win)
-        controller = MayaviController(self.model, plotter_win, self.start_dir)
+        controller = MayaviController(self, plotter_win, self.start_dir)
         self.controllers.append(controller)
         plotter_win.show()
         QApplication.restoreOverrideCursor()
@@ -127,14 +141,15 @@ class ParamController:
         return file_lst[0] if len(file_lst) == 1 else ''
 
     def _update_model(self, file_prefix):
+        dlg = self.dlg
         QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
             self.model = DataModel()
             self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')
-            self.dlg.lblErrorReport.setText("")
-            self.dlg.btnDisplay.setEnabled(True)
+            dlg.lblErrorReport.setText("")
+            dlg.btnDisplay.setEnabled(True)
         except Exception as e:
-            self.dlg.lblErrorReport.setText(str(e))
-            self.dlg.btnDisplay.setEnabled(False)
+            dlg.lblErrorReport.setText(str(e))
+            dlg.btnDisplay.setEnabled(False)
         QApplication.restoreOverrideCursor()
 

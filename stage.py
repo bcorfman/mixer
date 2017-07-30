@@ -8,10 +8,7 @@ from inifile import IniParser
 
 if __name__ == '__main__':
     print('Running in ' + os.getcwd() + '.\n')
-    try:
-        app = QtGui.QApplication(sys.argv)
-    except RuntimeError:
-        app = QtCore.QCoreApplication.instance(sys.argv)
+    app = QtGui.QApplication.instance()
     param_dlg = load_ui_widget('paramdlg.ui')
     geo = param_dlg.frameGeometry()
     height, width = geo.height(), geo.width()
@@ -25,15 +22,8 @@ if __name__ == '__main__':
     ini_parser.read_ini_file()
     param_dlg.setGeometry(ini_parser.x, ini_parser.y, ini_parser.width, ini_parser.height)
     out_files = [os.path.splitext(x)[0] for x in os.listdir(ini_parser.dir) if x.endswith('.out')]
-    param_dlg_ctlr = ParamController(param_dlg, ini_parser.dir, out_files)
+    param_dlg_ctlr = ParamController(app, param_dlg, ini_parser.dir, out_files)
 
-    param_dlg.btnChoose.clicked.connect(param_dlg_ctlr.on_btn_choose)
-    param_dlg.lstCase.itemClicked.connect(param_dlg_ctlr.on_case_item_clicked)
-    param_dlg.btnDisplay.clicked.connect(param_dlg_ctlr.on_btn_display)
-    param_dlg.cboAOF.currentIndexChanged.connect(param_dlg_ctlr.on_dialog_changed)
-    param_dlg.cboTermVel.currentIndexChanged.connect(param_dlg_ctlr.on_dialog_changed)
-    param_dlg.cboBurstHeight.currentIndexChanged.connect(param_dlg_ctlr.on_dialog_changed)
-    app.aboutToQuit.connect(param_dlg_ctlr.about_to_quit)
     param_dlg.show()
     app.exec_()
     app.deleteLater()

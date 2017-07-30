@@ -1,52 +1,52 @@
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
-from tvtk.pyface.api import DecoratedScene
+from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
 from plot3d import Plotter
 
 
-class MayaviController(QtGui.QWidget):
-    def __init__(self, model, parent, working_dir):
-        QtGui.QWidget.__init__(self, parent)
-
-        self.parent = parent
+class MayaviController:
+    def __init__(self, parent_ctlr, view, working_dir):
+        self.view = view
         self.working_dir = working_dir
-        scene = DecoratedScene(parent)
-        scene._tool_bar.setVisible(False)
-        window = scene.control
-        layout = QtGui.QVBoxLayout(parent.frmMayavi)
+        scene = MayaviScene(view)
+        #scene._tool_bar.setVisible(False)
+        ctrl = scene.control
+        layout = QtGui.QVBoxLayout(view.frmMayavi)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(window)
+        layout.addWidget(ctrl)
 
         # set up window controls and events
-        parent.rdoSample.setChecked(True)
-        parent.rdoSample.clicked.connect(self.on_rdo_sample)
-        parent.rdoBurst.clicked.connect(self.on_rdo_burst)
-        parent.btnSave.clicked.connect(self.on_btn_save_clicked)
-        parent.btnHome.clicked.connect(self.on_btn_home_clicked)
-        parent.btnAxes.clicked.connect(self.on_btn_axes_clicked)
+        view.closeEvent = self.closeEvent
+        view.rdoSample.setChecked(True)
+        view.rdoSample.clicked.connect(self.on_rdo_sample)
+        view.rdoBurst.clicked.connect(self.on_rdo_burst)
+        view.btnSave.clicked.connect(self.on_btn_save_clicked)
+        view.btnHome.clicked.connect(self.on_btn_home_clicked)
+        view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
 
+        model = parent_ctlr.model
         if model.az_averaging:
-            layout = parent.frmAzimuth.layout()
-            point_type = 'sample' if parent.rdoSample.isChecked() else 'burst'
+            layout = view.frmAzimuth.layout()
+            point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
             label_text = 'View {0} points at attack azimuth:'.format(point_type)
-            parent.lblAzimuth = QtGui.QLabel(label_text, parent.frmAzimuth)
-            layout.addWidget(parent.lblAzimuth)
-            self.buttonGroup = QtGui.QButtonGroup(parent.frmAzimuth)
-            self.buttonGroup.buttonClicked.connect(self.on_rdo_azimuth_clicked)
+            view.lblAzimuth = QtGui.QLabel(label_text, view.frmAzimuth)
+            layout.addWidget(view.lblAzimuth)
+            view.buttonGroup = QtGui.QButtonGroup(view.frmAzimuth)
+            view.buttonGroup.buttonClicked.connect(self.on_rdo_azimuth_clicked)
             for az in range(0, 360, int(model.attack_az)):
-                rdo_button = QtGui.QRadioButton('{0} degrees'.format(az), parent.frmAzimuth)
+                rdo_button = QtGui.QRadioButton('{0} degrees'.format(az), view.frmAzimuth)
                 layout.addWidget(rdo_button)
-                self.buttonGroup.addButton(rdo_button, az)
+                view.buttonGroup.addButton(rdo_button, az)
                 if az == 0:
                     rdo_button.setChecked(True)
         else:
-            parent.frmAzimuth.setVisible(False)
+            view.frmAzimuth.setVisible(False)
 
-        plotter = Plotter(parent, scene)
+        plotter = Plotter(view, scene)
         self.plotter = plotter
-        points = model.get_sample_points() if parent.rdoSample.isChecked() else model.get_burst_points()
-        az = self.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
+        points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
+        az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         figure = self.plotter.plot_data(model, az, points)
 
         def picker_callback(pick):
@@ -71,7 +71,7 @@ class MayaviController(QtGui.QWidget):
                     # data point.
                     plotter.set_outline(x, y, z)
 
-                    if parent.rdoSample.isChecked():
+                    if view.rdoSample.isChecked():
                         output = 'Sample point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
                     else:
                         output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
@@ -97,7 +97,7 @@ class MayaviController(QtGui.QWidget):
                                 output += 'None'
                             output += '\n'
 
-                    parent.txtInfo.setPlainText(output)
+                    view.txtInfo.setPlainText(output)
 
         picker = figure.on_mouse_pick(picker_callback)
         picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
@@ -129,4 +129,5 @@ class MayaviController(QtGui.QWidget):
             label_text = 'View {0} points at attack azimuth:'.format(point_type)
             self.parent.lblAzimuth.setText(label_text)
 
-
+    def closeEvent(self, event):
+        print('CloseEvent')
