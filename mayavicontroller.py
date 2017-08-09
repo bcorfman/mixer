@@ -8,9 +8,9 @@ class MayaviController:
     def __init__(self, parent_ctlr, view, working_dir):
         self.view = view
         self.working_dir = working_dir
-        scene = MayaviScene(view)
+        self.parent_ctlr = parent_ctlr
         #scene._tool_bar.setVisible(False)
-        ctrl = scene.control
+        #ctrl = scene.control
         layout = QtGui.QVBoxLayout(view.frmMayavi)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -106,13 +106,13 @@ class MayaviController:
         self.plotter.reset_view()
 
     def on_btn_save_clicked(self):
-        filename = QFileDialog.getSaveFileName(self.parent, 'Save Figure', self.working_dir,
+        filename = QFileDialog.getSaveFileName(self.view, 'Save Figure', self.working_dir,
                                                'Images(*.png *.xpm *.jpg)')
         if filename:
             self.plotter.save_view_to_file(filename)
 
     def on_btn_axes_clicked(self):
-        self.plotter.show_axes(self.parent.btnAxes.isChecked())
+        self.plotter.show_axes(self.view.btnAxes.isChecked())
 
     def on_rdo_azimuth_clicked(self, button):
         print('on_rdo_azimuth {0}'.format(self.buttonGroup.checkedId()))
@@ -124,10 +124,10 @@ class MayaviController:
         self._set_lbl_azimuth_text()
 
     def _set_lbl_azimuth_text(self):
-        if self.parent.frmAzimuth.isVisible():
-            point_type = 'sample' if self.parent.rdoSample.isChecked() else 'burst'
+        if self.view.frmAzimuth.isVisible():
+            point_type = 'sample' if self.view.rdoSample.isChecked() else 'burst'
             label_text = 'View {0} points at attack azimuth:'.format(point_type)
-            self.parent.lblAzimuth.setText(label_text)
+            self.view.lblAzimuth.setText(label_text)
 
     def closeEvent(self, event):
         print('CloseEvent')

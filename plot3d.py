@@ -2,10 +2,12 @@
 import math
 from numpy import array, full, eye
 import util
-from tvtk.common import configure_input, configure_connection
 from tvtk.api import tvtk
 from mayavi import mlab
-from mayavi.api import Engine
+from traits.api import HasTraits, Instance, on_trait_change
+from traitsui.api import View, Item
+from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
+from mayavi.core.api import Engine
 from const import GYPSY_PINK
 
 """
@@ -26,13 +28,32 @@ __doc__ = '''
 
 ######################################################################
 
+class Visualization(HasTraits):
+    scene = Instance(MlabSceneModel)
 
-class Plotter:
-    def __init__(self, parent, scene):
-        self.parent = parent
+    view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
+                     resizable=True, show_label=False),
+                resizable=True)
+
+    def __init__(self, **traits):
+        super(HasTraits, self).__init__(**traits)
+        self.engine = Engine()
+        self.engine.start()
+        # self.figure = self.scene.mlab.gcf()
+
+    def _scene_default(self):
+        return MlabSceneModel(engine=self.engine)
+
+    @on_trait_change('scene.activated')
+    def update_plot(self):
+        picker = self.figure.on_mouse_pick(self.on_pick)
+        picker.tolerance = 0.5
+
+
+class Plotter(Visualization):
+    def __init__(self, parent):
+        super(Plotter, self).__init__()
         self.scale_defl, self.scale_range = 0.0, 0.0
-        self.engine = None
-        self.scene = scene
         self.plot = None
         self.target = None
         self.model = None
@@ -262,6 +283,22 @@ class Plotter:
         self.scene.disable_render = False  # reinstate display
         mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
         return mlab.gcf()
+
+    @on_trait_change('scene.activated')
+    def update_plot(self):
+        pi = np.pi
+        phi, theta = np.mgrid[0:pi:101j, 0:2 * pi:101j]
+
+        x = self.radius * np.sin(phi) * np.cos(theta)
+        y = self.radius * np.sin(phi) * np.sin(theta)
+        z = self.radius * np.cos(phi)
+
+        self.scene.mlab.mesh(x, y, z, color=(0, 1, 0))
+
+        super(Plotter, self).update_plot()
+
+    def on_pick(self, event):
+        ind = event.point_id // self.np
 
     def set_outline(self, x, y, z):
         if self.outline is None:
