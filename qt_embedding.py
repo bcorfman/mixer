@@ -7,13 +7,14 @@ from traits.api import HasTraits, Instance, on_trait_change
 from traitsui.api import View, Item
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
 from mayavi.core.api import Engine
+from uiloader import load_ui_widget
 
 
 class Visualization(HasTraits):
     scene = Instance(MlabSceneModel)
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
-                     height=250, width=300, show_label=False),
+                     height=600, width=800, show_label=False),
                 resizable=True)
 
     def __init__(self, points, engine, **traits):
@@ -35,9 +36,10 @@ class Visualization(HasTraits):
         self.scene.mlab.points3d(*self.points, scale_factor=0.03)
 
     def on_pick(self, event):
-        ind = event.point_id//self.np
-        print(ind)
-        print(self.points[0][ind], self.points[1][ind], self.points[2][ind])
+        pass
+        #ind = event.point_id//self.np
+        #print(ind)
+        #print(self.points[0][ind], self.points[1][ind], self.points[2][ind])
 
 
 class Sphere(Visualization):
@@ -64,7 +66,7 @@ class MayaviQWidget(QtGui.QWidget):
     def __init__(self, visualization, parent=None):
         QtGui.QWidget.__init__(self, parent)
         layout = QtGui.QVBoxLayout(self)
-        layout.setContentsMargins(0,0,0,0)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.visualization = visualization
         self.ui = self.visualization.edit_traits(parent=self,
@@ -75,31 +77,18 @@ class MayaviQWidget(QtGui.QWidget):
 
 if __name__ == "__main__":
     app = QtGui.QApplication.instance()
-    container = QtGui.QWidget()
+    container = load_ui_widget('mayavi_win.ui')
+    #container = QtGui.QWidget()
     container.setWindowTitle("Embedding Mayavi in a PyQt4 Application")
-    layout = QtGui.QGridLayout(container)
+    layout = QtGui.QGridLayout(container.frmMayavi)
     s = Sphere(1, [[0, 1], [0, 0], [1, 0]], Engine())
-    mayavi_widget = MayaviQWidget(s, container)
+    mayavi_widget = MayaviQWidget(s, container.frmMayavi)  # the interesting part
     layout.addWidget(mayavi_widget, 1, 1)
-    label = QtGui.QLabel(container)
-    label.setText("hi")
-    layout.addWidget(label, 1, 2)
+    #label = QtGui.QLabel(container)
+    #label.setText("hi")
+    #layout.addWidget(label, 1, 2)
     container.show()
-
-    container2 = QtGui.QWidget()
-    container2.setWindowTitle("Embedding Mayavi - part 2")
-    layout2 = QtGui.QGridLayout(container2)
-    s2 = Sphere(1, [[0, 1], [0, 0], [1, 0]], Engine())
-    mayavi_widget2 = MayaviQWidget(s2, container2)
-    layout2.addWidget(mayavi_widget2, 1, 1)
-    label2 = QtGui.QLabel(container2)
-    label2.setText("hi")
-    layout2.addWidget(label2, 1, 2)
-    container2.show()
-    window = QtGui.QMainWindow()
-    window.setCentralWidget(container)
-    window.show()
-    window2 = QtGui.QMainWindow()
-    window2.setCentralWidget(container2)
-    window2.show()
     app.exec_()
+    layout.deleteLater()
+    mayavi_widget.deleteLater()
+    container.deleteLater()

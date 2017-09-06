@@ -1,5 +1,8 @@
 import sys
 import os
+import os
+os.environ['ETS_TOOLKIT'] = 'qt4'
+os.environ['QT_API'] = 'pyqt'
 import pyqt4_hook
 from PyQt4 import QtGui, QtCore
 from paramcontroller import ParamController

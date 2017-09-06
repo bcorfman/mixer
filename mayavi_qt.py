@@ -3,20 +3,16 @@ from tvtk.pyface.api import DecoratedScene
 
 
 class MayaviQWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, visualization, parent=None):
         QtGui.QWidget.__init__(self, parent)
 
-        # If you want to debug, beware that you need to remove the Qt
-        # input hook.
-        # QtCore.pyqtRemoveInputHook()
-        # import pdb ; pdb.set_trace()
-        # QtCore.pyqtRestoreInputHook()
-
         # The edit_traits call will generate the widget to embed.
-        self.scene = DecoratedScene(parent).control
-        layout = QtGui.QVBoxLayout(parent)
+        layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self.scene)
-
+        self.visualization = visualization
+        self.ui = visualization.edit_traits(parent=self,
+                                            kind='subpanel').control
+        layout.addWidget(self.ui)
+        self.ui.setParent(self)
 

@@ -1,4 +1,6 @@
-# -*- coding: utf-8 -*-
+import os
+os.environ['ETS_TOOLKIT'] = 'qt4'
+os.environ['QT_API'] = 'pyqt'
 import math
 from numpy import array, full, eye
 import util
@@ -28,6 +30,7 @@ __doc__ = '''
 
 ######################################################################
 
+
 class Visualization(HasTraits):
     scene = Instance(MlabSceneModel)
 
@@ -39,24 +42,22 @@ class Visualization(HasTraits):
         super(HasTraits, self).__init__(**traits)
         self.engine = Engine()
         self.engine.start()
-        # self.figure = self.scene.mlab.gcf()
 
     def _scene_default(self):
         return MlabSceneModel(engine=self.engine)
 
     @on_trait_change('scene.activated')
     def update_plot(self):
-        picker = self.figure.on_mouse_pick(self.on_pick)
-        picker.tolerance = 0.5
+        pass
 
 
 class Plotter(Visualization):
-    def __init__(self, parent):
+    def __init__(self, model):
         super(Plotter, self).__init__()
         self.scale_defl, self.scale_range = 0.0, 0.0
         self.plot = None
         self.target = None
-        self.model = None
+        self.model = model
         self.rotation = 0
         self.sel_x = []
         self.sel_y = []
@@ -65,6 +66,8 @@ class Plotter(Visualization):
         self.point_glyphs = None
         self.outline = None
         self.axes = None
+        self.selected_az = None
+        self.radius_points = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -78,8 +81,8 @@ class Plotter(Visualization):
             color.append(1.0)
         if not model.az_averaging:
             color = [1.0 for _ in range(model.num_tables)]  # red for any by-azimuth AVs, since PEs don't apply.
-        pts = mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
-                            scalars=color, mode='sphere', scale_factor=1)
+        pts = self.scene.mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
+                                       scalars=color, mode='sphere', scale_factor=1)
         pts.module_manager.scalar_lut_manager.reverse_lut = True
         pts.glyph.color_mode = 'color_by_scalar'
         pts.glyph.glyph_source.glyph_source.center = (0, 0, 0)
@@ -111,7 +114,7 @@ class Plotter(Visualization):
         p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
 
         # this method puts the surface in the Mayavi pipeline so the user can change it.
-        surf = mlab.pipeline.surface(rgrid, name='matrix')
+        surf = self.scene.mlab.pipeline.surface(rgrid, name='matrix')
         surf.actor.actor.property = p
         surf.actor.update_data()
 
@@ -120,18 +123,18 @@ class Plotter(Visualization):
         # the colors mean.
         surf.module_manager.scalar_lut_manager.use_default_range = False
         surf.module_manager.scalar_lut_manager.data_range = array([0., 1.])
-        mlab.colorbar(surf, title='Cell Pk', orientation='vertical')
+        self.scene.mlab.colorbar(surf, title='Cell Pk', orientation='vertical')
 
         # Put max and min gridline coordinates in the upper-right corner of the matrix.
         # Also, scale the text to a readable size.
         sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 100))
         spacing = max(5, sz)
-        mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing + 2 * sz,
-                    str('Matrix range: (%5.1f, %5.1f)' % (model.mtx_extent_range[0], model.mtx_extent_range[1])),
-                    scale=(sz, sz, sz), name='Matrix range coordinates')
-        mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing,
-                    str('Matrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_defl[0], model.mtx_extent_defl[1])),
-                    scale=(sz, sz, sz), name='Matrix deflection coordinates')
+        self.scene.mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing + 2 * sz,
+                               str('Matrix range: (%5.1f, %5.1f)' % (model.mtx_extent_range[0], model.mtx_extent_range[1])),
+                               scale=(sz, sz, sz), name='Matrix range coordinates')
+        self.scene.mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing,
+                               str('Matrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_defl[0], model.mtx_extent_defl[1])),
+                               scale=(sz, sz, sz), name='Matrix deflection coordinates')
 
     def plot_blast_volume(self):
         model = self.model
@@ -228,7 +231,7 @@ class Plotter(Visualization):
             # label arrow with text describing terminal conditions
             format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity\n{3} ft. burst height'
             label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-            mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
+            self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
         else:
             for az in range(0, 360, int(model.attack_az)):
                 xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
@@ -237,72 +240,62 @@ class Plotter(Visualization):
                 xloc, yloc, _ = util.rotate_pt_around_yz_axes(-1.0, 0.0, 0.0, model.aof, az)
                 xloc *= model.volume_radius
                 yloc *= model.volume_radius
-                mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
-                              line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow')
+                self.scene.mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
+                                         line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow')
                 if az == 0:
                     format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity\n'
                     format_str += '{3} fr. burst height'
                     label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-                    mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
+                    self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
 
-    def plot_detail(self, az, points):
+    def plot_detail(self):
         """
         :param az: azimuth value used as an index for the points dictionary.
         :param points: dictionary that holds either sample point or burst point locations
         :return: None
         """
         self.sel_x, self.sel_y, self.sel_z = [], [], []
+        points = self.radius_points
+        az = self.selected_az
         for _, key in enumerate(points):
             self.sel_x.append(points[key][az][0])
             self.sel_y.append(points[key][az][1])
             self.sel_z.append(points[key][az][2])
-        self.point_glyphs = mlab.points3d(self.sel_x, self.sel_y, self.sel_z, color=(1, 1, 1), scale_factor=0.75)
+        self.point_glyphs = self.scene.mlab.points3d(self.sel_x, self.sel_y, self.sel_z, color=(1, 1, 1), scale_factor=0.75)
         # Here, we grab the points describing the individual glyph, to figure
         # out how many points are in an individual glyph.
         self.point_array = self.point_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
         # mlab.points3d([-0.19, -0.19], [-5.94, 5.87], [0, 7.6], color=(0, 1, 0), scale_factor=0.75)
 
-    def plot_data(self, model, az, points):
-        self.model = model
-        self.engine = Engine()
-        self.engine.start()
-        mlab.set_engine(self.engine)
-        self.engine.add_scene(self.scene)
+    @on_trait_change('scene.activated')
+    def update_plot(self):
+        model = self.model
         self.scene.disable_render = True  # generate scene more quickly by temporarily turning off rendering
-        if self.model.pks is not None:
+        if model.pks is not None:
             self.plot_matrix_file()  # matrix can be plotted if it was read in
         self.plot_srf_file()
-        if self.model.blast_comps:
-            self.plot_blast_volume()  # plot blast volume if blast damage was included in output
+        #if model.blast_comps:
+            #self.plot_blast_volume()  # plot blast volume if blast damage was included in output
         self.plot_av()
         self.plot_munition()
-        if self.model.dtl_file is not None:
-            self.plot_detail(az, points)
+        if model.dtl_file is not None:
+            self.plot_detail()
         self.axes = mlab.orientation_axes(figure=mlab.gcf())
         self.axes.visible = False
         self.scene.disable_render = False  # reinstate display
-        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
-        return mlab.gcf()
-
-    @on_trait_change('scene.activated')
-    def update_plot(self):
-        pi = np.pi
-        phi, theta = np.mgrid[0:pi:101j, 0:2 * pi:101j]
-
-        x = self.radius * np.sin(phi) * np.cos(theta)
-        y = self.radius * np.sin(phi) * np.sin(theta)
-        z = self.radius * np.cos(phi)
-
-        self.scene.mlab.mesh(x, y, z, color=(0, 1, 0))
-
+        self.scene.mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
         super(Plotter, self).update_plot()
 
     def on_pick(self, event):
         ind = event.point_id // self.np
 
+    def set_radius_params(self, az, points):
+        self.selected_az = az
+        self.radius_points = points
+
     def set_outline(self, x, y, z):
         if self.outline is None:
-            self.outline = mlab.outline(line_width=3)
+            self.outline = self.scene.mlab.outline(line_width=3)
             # self.outline.outline_mode = 'cornered'
             self.outline.manual_bounds = True
         self.outline.bounds = (x - 0.5, x + 0.5,
@@ -311,10 +304,10 @@ class Plotter(Visualization):
         self.outline.visible = True
 
     def reset_view(self):
-        mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
+        self.scene.mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
 
     def save_view_to_file(self, filename):
-        mlab.savefig(filename)
+        self.scene.mlab.savefig(filename)
 
     def show_axes(self, state):
         self.axes.visible = state

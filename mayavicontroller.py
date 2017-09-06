@@ -1,20 +1,15 @@
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
-from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
+from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
 
 
 class MayaviController:
-    def __init__(self, parent_ctlr, view, working_dir):
+    def __init__(self, model, view, working_dir):
+        self.model = model
         self.view = view
         self.working_dir = working_dir
-        self.parent_ctlr = parent_ctlr
-        #scene._tool_bar.setVisible(False)
-        #ctrl = scene.control
-        layout = QtGui.QVBoxLayout(view.frmMayavi)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(ctrl)
+        self.plotter = plotter = Plotter(model)
 
         # set up window controls and events
         view.closeEvent = self.closeEvent
@@ -25,7 +20,6 @@ class MayaviController:
         view.btnHome.clicked.connect(self.on_btn_home_clicked)
         view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
 
-        model = parent_ctlr.model
         if model.az_averaging:
             layout = view.frmAzimuth.layout()
             point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
@@ -43,11 +37,12 @@ class MayaviController:
         else:
             view.frmAzimuth.setVisible(False)
 
-        plotter = Plotter(view, scene)
-        self.plotter = plotter
         points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-        figure = self.plotter.plot_data(model, az, points)
+        plotter.set_radius_params(az, points)
+        self.mayavi_widget = MayaviQWidget(plotter, view.frmMayavi)
+        layout = QtGui.QGridLayout(view.frmMayavi)
+        layout.addWidget(self.mayavi_widget, 1, 1)
 
         def picker_callback(pick):
             """ This get called on pick events. """
@@ -99,6 +94,7 @@ class MayaviController:
 
                     view.txtInfo.setPlainText(output)
 
+        figure = plotter.scene.mlab.gcf()
         picker = figure.on_mouse_pick(picker_callback)
         picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
 
@@ -115,12 +111,15 @@ class MayaviController:
         self.plotter.show_axes(self.view.btnAxes.isChecked())
 
     def on_rdo_azimuth_clicked(self, button):
-        print('on_rdo_azimuth {0}'.format(self.buttonGroup.checkedId()))
+        self.update_radius_params()
+        print('on_rdo_azimuth {0}'.format(self.view.buttonGroup.checkedId()))
 
     def on_rdo_sample(self):
+        self.update_radius_params()
         self._set_lbl_azimuth_text()
 
     def on_rdo_burst(self):
+        self.update_radius_params()
         self._set_lbl_azimuth_text()
 
     def _set_lbl_azimuth_text(self):
@@ -131,3 +130,11 @@ class MayaviController:
 
     def closeEvent(self, event):
         print('CloseEvent')
+
+    def update_radius_params(self):
+        model = self.model
+        view = self.view
+        points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
+        az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
+        self.plotter.set_radius_params(az, points)
+

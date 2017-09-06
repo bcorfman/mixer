@@ -27,7 +27,6 @@ class ParamController:
         self.ini_parser = IniParser(dlg)
         self.ini_parser.dir = start_dir
         self._populate_list_box()
-        self.plot_windows = []
         self.controllers = []
         self.model = None
         self.stop_events = False
@@ -115,11 +114,10 @@ class ParamController:
 
     def on_btn_display(self):
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        plotter_win = load_ui_widget('mayavi_win.ui')
         file_prefix = self._get_file_match()
+        plotter_win = load_ui_widget('mayavi_win.ui')
         plotter_win.setWindowTitle(file_prefix)
-        self.plot_windows.append(plotter_win)
-        controller = MayaviController(self, plotter_win, self.start_dir)
+        controller = MayaviController(self.model, plotter_win, self.start_dir)
         self.controllers.append(controller)
         plotter_win.show()
         QApplication.restoreOverrideCursor()
