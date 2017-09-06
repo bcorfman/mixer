@@ -130,6 +130,7 @@ class MayaviController:
 
     def closeEvent(self, event):
         print('CloseEvent')
+        self.mayavi_widget.deleteLater()
 
     def update_radius_params(self):
         model = self.model
@@ -137,4 +138,5 @@ class MayaviController:
         points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         self.plotter.set_radius_params(az, points)
+        # self.plotter.update_plot()
 

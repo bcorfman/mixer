@@ -280,7 +280,7 @@ class Plotter(Visualization):
         self.plot_munition()
         if model.dtl_file is not None:
             self.plot_detail()
-        self.axes = mlab.orientation_axes(figure=mlab.gcf())
+        self.axes = self.scene.mlab.orientation_axes(figure=self.scene.mlab.gcf())
         self.axes.visible = False
         self.scene.disable_render = False  # reinstate display
         self.scene.mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
