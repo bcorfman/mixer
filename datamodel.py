@@ -50,7 +50,8 @@ class DataModel(object):
         self.tgt_center = None
         self.volume_radius = None
         self.mtx_kill_id = None
-        self.blast_comps = None
+        self.frag_comps = []
+        self.blast_comps = []
         self.dh_comps = []
         self.dtl_file = None
         self.comp_num = None
@@ -71,16 +72,31 @@ class DataModel(object):
                 detail.read(self.dtl_file)
             else:
                 raise IOError(".dtl file does not have the full level of detail.")
-        self.transform_blast_volumes()
+        kill_comps = self.extract_components(self.mtx_kill_id)
+        self.transform_blast_volumes(kill_comps)
+        self.transform_direct_hit_components(kill_comps)
+        self.transform_frag_components(kill_comps)
         self.transform_surfaces()
         self.find_closest_az_and_el_indices()
 
-    def transform_blast_volumes(self):
-        kill_comps = self.extract_components(self.mtx_kill_id)
+    def transform_blast_volumes(self, kill_comps):
         if kill_comps:
             self.blast_comps = set(kill_comps).intersection(self.blast_vol.keys())
         else:
             self.blast_comps = self.blast_vol.keys()
+
+    def transform_direct_hit_components(self, kill_comps):
+        if kill_comps:
+            self.dh_comps = set(kill_comps).intersection(self.blast_vol.keys())
+        else:
+            self.dh_comps = self.blast_vol.keys()
+
+    def transform_frag_components(self, kill_comps):
+        potential_frag_comps = [c.id for c in self.comp_list if c.id != 0]
+        if kill_comps:
+            self.frag_comps = set(kill_comps).intersection(potential_frag_comps)
+        else:
+            self.frag_comps = potential_frag_comps
 
     def transform_surfaces(self):
         """

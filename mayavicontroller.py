@@ -54,9 +54,9 @@ class MayaviController:
 
                 # If the no points have been selected, we have '-1'
                 if point_id != -1:
-                    pid = point_id + 1
                     # Retrieve the coordinates corresponding to that data
                     # point -- point ids start at 1, so add 1 to 0-based indexing.
+                    pid = point_id + 1
                     x = points[pid][az][0]
                     y = points[pid][az][1]
                     z = points[pid][az][2]
@@ -71,7 +71,6 @@ class MayaviController:
                     else:
                         output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
 
-                    frag_comps = [c.id for c in model.comp_list if c.id != 0]
                     for i, c in enumerate(model.comp_list):
                         cid = i + 1  # component numbers start at 1
                         if cid in model.dh_comps:
@@ -80,7 +79,7 @@ class MayaviController:
                             output += '      Surf hit: {0}\n'.format(surf_name)
                         elif cid in model.blast_comps:
                             output += '   Blast PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
-                        elif cid in frag_comps:
+                        elif cid in model.frag_comps:
                             output += '   Frag PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
                             output += '      Zone '
                             zones = model.frag_zones[pid][az][cid]
@@ -112,7 +111,7 @@ class MayaviController:
 
     def on_rdo_azimuth_clicked(self, button):
         self.update_radius_params()
-        print('on_rdo_azimuth {0}'.format(self.view.buttonGroup.checkedId()))
+        # print('on_rdo_azimuth {0}'.format(self.view.buttonGroup.checkedId()))
 
     def on_rdo_sample(self):
         self.update_radius_params()
@@ -129,7 +128,6 @@ class MayaviController:
             self.view.lblAzimuth.setText(label_text)
 
     def closeEvent(self, event):
-        print('CloseEvent')
         self.mayavi_widget.deleteLater()
 
     def update_radius_params(self):

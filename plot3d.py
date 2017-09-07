@@ -283,7 +283,6 @@ class Plotter(Visualization):
         self.axes = self.scene.mlab.orientation_axes(figure=self.scene.mlab.gcf())
         self.axes.visible = False
         self.scene.disable_render = False  # reinstate display
-        self.scene.mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
         super(Plotter, self).update_plot()
 
     def on_pick(self, event):
