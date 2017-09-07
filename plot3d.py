@@ -280,6 +280,8 @@ class Plotter(Visualization):
         self.plot_munition()
         if model.dtl_file is not None:
             self.plot_detail()
+            # TODO: reset existing points instead of plotting them each time scene is updated, also need to consider
+            # TODO: how to reset_view the first time (use flag?)
         self.axes = self.scene.mlab.orientation_axes(figure=self.scene.mlab.gcf())
         self.axes.visible = False
         self.scene.disable_render = False  # reinstate display
