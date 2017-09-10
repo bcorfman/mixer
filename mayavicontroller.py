@@ -37,9 +37,12 @@ class MayaviController:
         else:
             view.frmAzimuth.setVisible(False)
 
+        # when this code is called, the sample points or burstpoints in the plotter are initialized only.
+        # They cannot be drawn until the Mayavi widget is created here and the scene is activated (and then
+        # plotter.update_plot is called).
         points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-        plotter.set_radius_params(az, points)
+        self.plotter.update_point_detail(az, points)
         self.mayavi_widget = MayaviQWidget(plotter, view.frmMayavi)
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
@@ -56,46 +59,47 @@ class MayaviController:
                 if point_id != -1:
                     # Retrieve the coordinates corresponding to that data
                     # point -- point ids start at 1, so add 1 to 0-based indexing.
-                    pid = point_id + 1
-                    x = points[pid][az][0]
-                    y = points[pid][az][1]
-                    z = points[pid][az][2]
+                    pid = plotter.pid = point_id + 1
 
                     # Move the outline to the data point.
                     # Add an outline to show the selected point and center it on the first
                     # data point.
-                    plotter.set_outline(x, y, z)
-
-                    if view.rdoSample.isChecked():
-                        output = 'Sample point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
-                    else:
-                        output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
-
-                    for i, c in enumerate(model.comp_list):
-                        cid = i + 1  # component numbers start at 1
-                        if cid in model.dh_comps:
-                            output += '   DH PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
-                            surf_name = model.surf_names[model.surface_hit[pid][az]]
-                            output += '      Surf hit: {0}\n'.format(surf_name)
-                        elif cid in model.blast_comps:
-                            output += '   Blast PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
-                        elif cid in model.frag_comps:
-                            output += '   Frag PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
-                            output += '      Zone '
-                            zones = model.frag_zones[pid][az][cid]
-                            if zones:
-                                output += '{0}'.format(zones[0][0])
-                                for z in range(1, len(zones) - 1):
-                                    output += ', {0}'.format(zones[z][0])
-                            else:
-                                output += 'None'
-                            output += '\n'
-
-                    view.txtInfo.setPlainText(output)
+                    x, y, z = plotter.set_outline()
+                    self.print_point_details(pid, x, y, z)
 
         figure = plotter.scene.mlab.gcf()
         picker = figure.on_mouse_pick(picker_callback)
         picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+
+    def print_point_details(self, pid, x, y, z):
+        model = self.model
+        if self.view.rdoSample.isChecked():
+            output = 'Sample point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
+        else:
+            output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
+
+        az = self.plotter.selected_az
+        for i, c in enumerate(model.comp_list):
+            cid = i + 1  # component numbers start at 1
+            if cid in model.dh_comps:
+                output += '   DH PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                surf_name = model.surf_names[model.surface_hit[pid][az]]
+                output += '      Surf hit: {0}\n'.format(surf_name)
+            elif cid in model.blast_comps:
+                output += '   Blast PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+            elif cid in model.frag_comps:
+                output += '   Frag PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+                output += '      Zone '
+                zones = model.frag_zones[pid][az][cid]
+                if zones:
+                    output += '{0}'.format(zones[0][0])
+                    for z in range(1, len(zones) - 1):
+                        output += ', {0}'.format(zones[z][0])
+                else:
+                    output += 'None'
+                output += '\n'
+
+        self.view.txtInfo.setPlainText(output)
 
     def on_btn_home_clicked(self):
         self.plotter.reset_view()
@@ -110,16 +114,24 @@ class MayaviController:
         self.plotter.show_axes(self.view.btnAxes.isChecked())
 
     def on_rdo_azimuth_clicked(self, button):
+        self.view.txtInfo.setPlainText("")
         self.update_radius_params()
-        # print('on_rdo_azimuth {0}'.format(self.view.buttonGroup.checkedId()))
+        x, y, z = self.plotter.set_outline()
+        self.print_point_details(self.plotter.pid, x, y, z)
 
     def on_rdo_sample(self):
-        self.update_radius_params()
+        self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
+        self.update_radius_params()
+        x, y, z = self.plotter.set_outline()
+        self.print_point_details(self.plotter.pid, x, y, z)
 
     def on_rdo_burst(self):
-        self.update_radius_params()
+        self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
+        self.update_radius_params()
+        x, y, z = self.plotter.set_outline()
+        self.print_point_details(self.plotter.pid, x, y, z)
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():
@@ -135,6 +147,7 @@ class MayaviController:
         view = self.view
         points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-        self.plotter.set_radius_params(az, points)
-        # self.plotter.update_plot()
+        self.plotter.update_point_detail(az, points)
+        self.plotter.plot_detail()
+
 

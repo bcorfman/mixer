@@ -55,6 +55,8 @@ class DataModel(object):
         self.dh_comps = []
         self.dtl_file = None
         self.comp_num = None
+        self.sample_loc = None
+        self.burst_loc = None
 
     def read_and_transform_all_files(self, out_file):
         av_file, srf_file, mtx_file, kill_file, self.dtl_file = Output(self).read(out_file)
