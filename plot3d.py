@@ -282,7 +282,7 @@ class Plotter(Visualization):
             #self.plot_blast_volume()  # plot blast volume if blast damage was included in output
         self.plot_av()
         self.plot_munition()
-        if model.dtl_file is not None:
+        if model.sample_loc:
             self.plot_detail()
         self.axes = self.scene.mlab.orientation_axes(figure=self.scene.mlab.gcf())
         self.axes.visible = False

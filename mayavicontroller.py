@@ -20,7 +20,7 @@ class MayaviController:
         view.btnHome.clicked.connect(self.on_btn_home_clicked)
         view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
 
-        if model.az_averaging:
+        if model.az_averaging and model.sample_loc:
             layout = view.frmAzimuth.layout()
             point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
             label_text = 'View {0} points at attack azimuth:'.format(point_type)
@@ -36,13 +36,15 @@ class MayaviController:
                     rdo_button.setChecked(True)
         else:
             view.frmAzimuth.setVisible(False)
+            view.frmDetail.setVisible(False)
 
         # when this code is called, the sample points or burstpoints in the plotter are initialized only.
         # They cannot be drawn until the Mayavi widget is created here and the scene is activated (and then
         # plotter.update_plot is called).
-        points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
-        az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-        self.plotter.update_point_detail(az, points)
+        if model.sample_loc:
+            points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
+            az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
+            self.plotter.update_point_detail(az, points)
         self.mayavi_widget = MayaviQWidget(plotter, view.frmMayavi)
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
@@ -67,9 +69,10 @@ class MayaviController:
                     x, y, z = plotter.set_outline()
                     self.print_point_details(pid, x, y, z)
 
-        figure = plotter.scene.mlab.gcf()
-        picker = figure.on_mouse_pick(picker_callback)
-        picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+        if model.dtl_file is not None:
+            figure = plotter.scene.mlab.gcf()
+            picker = figure.on_mouse_pick(picker_callback)
+            picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
 
     def print_point_details(self, pid, x, y, z):
         model = self.model
@@ -115,23 +118,26 @@ class MayaviController:
 
     def on_rdo_azimuth_clicked(self, button):
         self.view.txtInfo.setPlainText("")
-        self.update_radius_params()
-        x, y, z = self.plotter.set_outline()
-        self.print_point_details(self.plotter.pid, x, y, z)
+        if self.model.sample_loc:
+            self.update_radius_params()
+            x, y, z = self.plotter.set_outline()
+            self.print_point_details(self.plotter.pid, x, y, z)
 
     def on_rdo_sample(self):
         self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
-        self.update_radius_params()
-        x, y, z = self.plotter.set_outline()
-        self.print_point_details(self.plotter.pid, x, y, z)
+        if self.model.sample_loc:
+            self.update_radius_params()
+            x, y, z = self.plotter.set_outline()
+            self.print_point_details(self.plotter.pid, x, y, z)
 
     def on_rdo_burst(self):
         self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
-        self.update_radius_params()
-        x, y, z = self.plotter.set_outline()
-        self.print_point_details(self.plotter.pid, x, y, z)
+        if self.model.sample_loc:
+            self.update_radius_params()
+            x, y, z = self.plotter.set_outline()
+            self.print_point_details(self.plotter.pid, x, y, z)
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():
@@ -148,6 +154,7 @@ class MayaviController:
         points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         self.plotter.update_point_detail(az, points)
-        self.plotter.plot_detail()
+        if model.sample_loc:
+            self.plotter.plot_detail()
 
 
