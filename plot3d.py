@@ -2,7 +2,7 @@ import os
 os.environ['ETS_TOOLKIT'] = 'qt4'
 os.environ['QT_API'] = 'pyqt'
 import math
-from numpy import array, full, eye
+from numpy import array, full, eye, ones_like
 import util
 from tvtk.api import tvtk
 from mayavi import mlab
@@ -262,11 +262,13 @@ class Plotter(Visualization):
             self.sel_x.append(points[key][az][0])
             self.sel_y.append(points[key][az][1])
             self.sel_z.append(points[key][az][2])
+        # setting the scalars here is necessary to avoid VTK error: "Algorithm vtkAssignAttribute returned failure
+        # for request: vtkInformation". See https://github.com/enthought/mayavi/issues/3
         if self.point_glyphs is None:
-            self.point_glyphs = self.scene.mlab.points3d(self.sel_x, self.sel_y, self.sel_z, color=(1, 1, 1),
-                                                         scale_factor=0.75)
+            self.point_glyphs = self.scene.mlab.points3d(self.sel_x, self.sel_y, self.sel_z, ones_like(self.sel_x),
+                                                         color=(1, 1, 1), scale_factor=0.75)
         else:
-            self.point_glyphs.mlab_source.set(x=self.sel_x, y=self.sel_y, z=self.sel_z)
+            self.point_glyphs.mlab_source.set(x=self.sel_x, y=self.sel_y, z=self.sel_z, scalars=ones_like(self.sel_x))
         # Here, we grab the points describing the individual glyph, to figure
         # out how many points are in an individual glyph.
         self.point_array = self.point_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
@@ -290,12 +292,12 @@ class Plotter(Visualization):
         super(Plotter, self).update_plot()
         self.scene.mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
 
-    def on_pick(self, event):
-        ind = event.point_id // self.np
-
     def update_point_detail(self, az, points):
         self.selected_az = az
         self.radius_points = points
+
+    def turn_off_outline(self):
+        self.outline.visible = False
 
     def set_outline(self):
         if self.outline is None:

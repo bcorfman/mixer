@@ -68,7 +68,6 @@ class DataModel(object):
         if exists(mtx_file):
             Matrix(self).read(mtx_file)
             self.transform_matrix()
-        self.dtl_file += "zzz"
         if exists(self.dtl_file):
             detail = Detail(self)
             if detail.validate(self.dtl_file):
