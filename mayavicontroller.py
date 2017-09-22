@@ -2,6 +2,7 @@ from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
+from collections import ChainMap
 
 
 class MayaviController:
@@ -83,16 +84,18 @@ class MayaviController:
             output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
 
         az = self.plotter.selected_az
-        for i, c in enumerate(model.comp_list):
-            cid = i + 1  # component numbers start at 1
-            if cid in model.dh_comps:
-                output += '   DH PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+        comp_ids = sorted(model.dh_ids.union(model.blast_ids).union(model.frag_ids))
+        for cid in comp_ids:
+            if cid in model.dh_ids:
+                output += '   DH PK for {0}: {1:.2f}\n'.format(model.comps[cid].name, model.comp_pk[pid][az][cid])
                 surf_name = model.surf_names[model.surface_hit[pid][az]]
                 output += '      Surf hit: {0}\n'.format(surf_name)
-            elif cid in model.blast_comps:
-                output += '   Blast PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
-            elif cid in model.frag_comps:
-                output += '   Frag PK for {0}: {1:.2f}\n'.format(c.name, model.comp_pk[pid][az][cid])
+            elif cid in model.blast_ids:
+                output += '   Blast PK for {0}: {1:.2f}\n'.format(model.comps[cid].name,
+                                                                  model.comp_pk[pid][az][cid])
+            elif cid in model.frag_ids:
+                output += '   Frag PK for {0}: {1:.2f}\n'.format(model.comps[cid].name,
+                                                                 model.comp_pk[pid][az][cid])
                 output += '      Zone '
                 zones = model.frag_zones[pid][az][cid]
                 if zones:

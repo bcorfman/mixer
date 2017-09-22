@@ -75,9 +75,9 @@ class Plotter(Visualization):
         model = self.model
         x, y, z, sz, color = [], [], [], [], []
         for i in range(model.num_tables):  # iterates over real component AVs (no dummy components)
-            x.append(model.comp_list[i].x)
-            y.append(model.comp_list[i].y)
-            z.append(model.comp_list[i].z)
+            x.append(model.comps[i].x)
+            y.append(model.comps[i].y)
+            z.append(model.comps[i].z)
             sz.append(0.3)
             color.append(1.0)
         if not model.az_averaging:
@@ -142,8 +142,8 @@ class Plotter(Visualization):
         t = tvtk.Transform()
         t.rotate_x(90.0)
         p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
-        for _, bidx in enumerate(model.blast_comps):
-            comp = model.comp_list[bidx - 1]  # TODO: this is 0 indexed; should fix this
+        for bidx in model.blast_ids:
+            comp = model.comps[bidx]
             r1, r2, r3, z1, z2 = model.blast_vol[bidx]  # 1 indexed
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
@@ -280,7 +280,7 @@ class Plotter(Visualization):
         if model.pks is not None:
             self.plot_matrix_file()  # matrix can be plotted if it was read in
         self.plot_srf_file()
-        #if model.blast_comps:
+        #if model.blast_ids:
             #self.plot_blast_volume()  # plot blast volume if blast damage was included in output
         self.plot_av()
         self.plot_munition()

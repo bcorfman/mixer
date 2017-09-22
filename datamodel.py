@@ -25,7 +25,7 @@ class DataModel(object):
         self.srf_min_x, self.srf_max_x = None, None
         self.srf_min_y, self.srf_max_y = None, None
         self.srf_max_z = None
-        self.comp_list = None
+        self.comps = None
         self.x_avg_loc, self.y_avg_loc = None, None
         self.x_loc, self.y_loc, self.z_loc = None, None, None
         self.num_tables = None
@@ -50,9 +50,9 @@ class DataModel(object):
         self.tgt_center = None
         self.volume_radius = None
         self.mtx_kill_id = None
-        self.frag_comps = []
-        self.blast_comps = []
-        self.dh_comps = []
+        self.frag_ids = None
+        self.blast_ids = None
+        self.dh_ids = None
         self.dtl_file = None
         self.comp_num = None
         self.sample_loc = None
@@ -74,45 +74,33 @@ class DataModel(object):
                 detail.read(self.dtl_file)
             else:
                 raise IOError(".dtl file does not have the full level of detail.")
-        kill_comps = self.extract_components(self.mtx_kill_id)
+        kill_comps = set(self.extract_components(self.mtx_kill_id))
         self.transform_blast_volumes(kill_comps)
         self.transform_direct_hit_components(kill_comps)
         self.transform_frag_components(kill_comps)
         self.transform_surfaces()
         self.find_closest_az_and_el_indices()
 
-    def transform_blast_volumes(self, kill_comps):
-        if kill_comps:
-            self.blast_comps = set(kill_comps).intersection(self.blast_vol.keys())
-        else:
-            self.blast_comps = self.blast_vol.keys()
+    def transform_blast_volumes(self, kill_ids):
+        if kill_ids:
+            self.blast_ids.intersection_update(kill_ids)
 
-    def transform_direct_hit_components(self, kill_comps):
-        if kill_comps:
-            self.dh_comps = set(kill_comps).intersection(self.blast_vol.keys())
-        else:
-            self.dh_comps = self.blast_vol.keys()
+    def transform_direct_hit_components(self, kill_ids):
+        if kill_ids:
+            self.dh_ids.intersection_update(kill_ids)
 
-    def transform_frag_components(self, kill_comps):
-        potential_frag_comps = [c.id for c in self.comp_list if c.id != 0]
-        if kill_comps:
-            self.frag_comps = set(kill_comps).intersection(potential_frag_comps)
-        else:
-            self.frag_comps = potential_frag_comps
+    def transform_frag_components(self, kill_ids):
+        if kill_ids:
+            self.frag_ids.intersection_update(kill_ids)
 
     def transform_surfaces(self):
         """
         Calculate a volume radius and geometric center for the target surfaces.
         """
         self.surfaces = np.array(self.surfaces)
-        # surface_points = [(s[0], s[1]) for s in self.surfaces]
-        # tgt_center_points = [(self.tgt_center[0], self.tgt_center[1]) for _ in self.surfaces]
-        # self.volume_radius = max(util.distance_between(surface_points, tgt_center_points))
         self.volume_radius = max(self.srf_min_x, self.srf_max_x, self.srf_min_y, self.srf_max_y)
-        if self.blast_comps:
-            for i in self.blast_comps:
-                r1, r2, r3, z1, z2 = self.blast_vol[i]
-                self.volume_radius = max(self.volume_radius, z1 + z2 + max(r3, r2, r1))
+        for r1, r2, r3, z1, z2 in self.blast_vol.values():
+            self.volume_radius = max(self.volume_radius, z1 + z2 + max(r3, r2, r1))
 
     def transform_matrix(self):
         # Store the matrix extents in range & deflection for later display in the 3D scene.

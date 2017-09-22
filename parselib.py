@@ -7,7 +7,6 @@ from const import CMPID, R1, R2, R3, Z1, Z2
 
 class AVComp(object):
     def __init__(self, **args):
-        self.id = args['id']
         self.x = args['x']
         self.y = args['y']
         self.z = args['z']
@@ -22,7 +21,8 @@ class AV(object):
             self.model = model
         model = self.model
         self.avf = None
-        model.comp_list = []
+        model.comps = {}
+        model.frag_ids = set()
         model.x_avg_loc, model.y_avg_loc = 0.0, 0.0
         model.x_loc, model.y_loc, model.z_loc = 0.0, 0.0, 0.0
         model.num_tables = None
@@ -63,11 +63,12 @@ class AV(object):
         model.x_loc, model.y_loc, model.z_loc = float(tokens[0]), float(tokens[1]), float(tokens[2])
         for i in range(num_comps):
             tokens = self.avf.readline().strip().split(None, 4)
-            comp = AVComp(id=int(tokens[0]), x=float(tokens[1]), y=float(tokens[2]), z=float(tokens[3]),
-                          name=tokens[4])
-            model.comp_list.append(comp)
-            if comp.id == 0:
+            comp = AVComp(x=float(tokens[1]), y=float(tokens[2]), z=float(tokens[3]), name=tokens[4])
+            comp_id = int(tokens[0])
+            model.comps[i] = comp
+            if comp_id == 0:
                 continue  # dummy component
+            model.frag_ids.add(i)
             model.x_avg_loc += comp.x
             model.y_avg_loc += comp.y
         self.avf.readline()  # AV HEADER LINES
@@ -209,10 +210,10 @@ class Output(object):
         model.attack_az = None
         model.aof = None
         model.blast_vol = OrderedDict()
+        model.blast_ids = set()
         model.av_file = ''
         model.srf_file = ''
-        model.dh_comps = None
-        model.blast_comps = None
+        model.dh_ids = set()
         self.case_completed = False
 
     def _parse_av_file(self, line):
@@ -250,17 +251,15 @@ class Output(object):
     # noinspection PyUnusedLocal
     def _parse_direct_hit_components(self, line):
         model = self.model
-        model.dh_comps = set()
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
-            model.dh_comps.add(int(tokens[1]))
+            model.dh_ids.add(int(tokens[1]))
             line = self.out.readline().strip()
 
     # noinspection PyUnusedLocal
     def _parse_blast_components(self, line):
         model = self.model
-        model.blast_comps = set()
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
@@ -271,7 +270,7 @@ class Output(object):
                                   float(tokens[Z2]))
 
             if not (r1 == 0.0 and r2 == 0.0 and r3 == 0.0 and z1 == 0.0 and z2 == 0.0):
-                model.blast_comps.add(idx)
+                model.blast_ids.add(idx)
                 model.blast_vol[idx] = [r1, r2, r3, z1, z2]
             if r1 == 0.0 and r2 == 0.0 and z1 == 0.0:  # sphere
                 line = self.out.readline().strip()  # this line contains the extra "Sphere" field
@@ -496,21 +495,20 @@ class Matrix(object):
 
 
 class Detail(object):
-    def __init__(self, model=None, az_averaging=None, attack_az=None, blast_comps=None, dh_comps=None):
+    def __init__(self, model=None, az_averaging=None, attack_az=None, blast_ids=None, dh_ids=None):
         if model is None:
             self.model = self
         else:
             self.model = model
-        self.dh_comps = set()
         model = self.model
         if az_averaging is not None:
             model.az_averaging = az_averaging
         if attack_az is not None:
             model.attack_az = attack_az
-        if blast_comps is not None:
-            model.blast_comps = blast_comps
-        if dh_comps is not None:
-            model.dh_comps = dh_comps
+        if blast_ids is not None:
+            model.blast_ids = blast_ids
+        if dh_ids is not None:
+            model.dh_ids = dh_ids
         self.dtl = None
         self.bp_idx = -1
         self.step = None
@@ -524,7 +522,6 @@ class Detail(object):
         model.comp_pk = {}
         model.dh_include_frag_effects = None
         model.comp_num = None
-        self.frag_comps = [c.id for c in model.comp_list if c.id != 0]
 
     # noinspection PyUnusedLocal
     def _parse_radius(self, line):
@@ -597,13 +594,13 @@ class Detail(object):
         line = self.dtl.readline()
         tokens = line.split(':', 15)
         idx = self.bp_idx
-        cmp = model.comp_num
-        if cmp in model.dh_comps:
-            model.comp_pk[idx][self.az][cmp] = float(tokens[12])
-        elif cmp in model.blast_comps:
-            model.comp_pk[idx][self.az][cmp] = float(tokens[13])
-        elif cmp in self.frag_comps:
-            model.comp_pk[idx][self.az][cmp] = float(tokens[14])
+        cid = model.comp_num
+        if cid in model.dh_ids:
+            model.comp_pk[idx][self.az][cid] = float(tokens[12])
+        elif cid in model.blast_ids:
+            model.comp_pk[idx][self.az][cid] = float(tokens[13])
+        elif cid in model.frag_ids:
+            model.comp_pk[idx][self.az][cid] = float(tokens[14])
         model.comp_num += 1
         return True
 
