@@ -52,6 +52,7 @@ class DataModel(object):
         self.mtx_kill_id = None
         self.frag_ids = None
         self.blast_ids = None
+        self.invuln_ids = None
         self.dh_ids = None
         self.dtl_file = None
         self.comp_num = None
@@ -84,14 +85,17 @@ class DataModel(object):
     def transform_blast_volumes(self, kill_ids):
         if kill_ids:
             self.blast_ids.intersection_update(kill_ids)
+            self.blast_ids.difference_update(self.invuln_ids)
 
     def transform_direct_hit_components(self, kill_ids):
         if kill_ids:
             self.dh_ids.intersection_update(kill_ids)
+            self.dh_ids.difference_update(self.invuln_ids)
 
     def transform_frag_components(self, kill_ids):
         if kill_ids:
             self.frag_ids.intersection_update(kill_ids)
+            self.frag_ids.difference_update(self.invuln_ids)
 
     def transform_surfaces(self):
         """

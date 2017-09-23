@@ -65,10 +65,10 @@ class AV(object):
             tokens = self.avf.readline().strip().split(None, 4)
             comp = AVComp(x=float(tokens[1]), y=float(tokens[2]), z=float(tokens[3]), name=tokens[4])
             comp_id = int(tokens[0])
-            model.comps[i] = comp
+            model.comps[i+1] = comp
             if comp_id == 0:
                 continue  # dummy component
-            model.frag_ids.add(i)
+            model.frag_ids.add(comp_id)
             model.x_avg_loc += comp.x
             model.y_avg_loc += comp.y
         self.avf.readline()  # AV HEADER LINES
@@ -214,6 +214,7 @@ class Output(object):
         model.av_file = ''
         model.srf_file = ''
         model.dh_ids = set()
+        model.invuln_ids = set()
         self.case_completed = False
 
     def _parse_av_file(self, line):
@@ -264,7 +265,7 @@ class Output(object):
         while line != '':
             tokens = line.split()
             if len(tokens) != 6:
-                return
+                raise IOError("Can't parse blast components")
             idx = int(tokens[CMPID])
             r1, r2, r3, z1, z2 = (float(tokens[R1]), float(tokens[R2]), float(tokens[R3]), float(tokens[Z1]),
                                   float(tokens[Z2]))
@@ -276,6 +277,16 @@ class Output(object):
                 line = self.out.readline().strip()  # this line contains the extra "Sphere" field
                 if line == "":  # extra insurance in case there's a blank line; exit early
                     break
+            line = self.out.readline().strip()
+
+    def _parse_invulnerable_components(self, line):
+        model = self.model
+        line = self.out.readline().strip()
+        while line != '':
+            tokens = line.split(':')
+            if len(tokens) != 2:
+                raise IOError("Can't parse invulnerable components")
+            model.invuln_ids.add(int(tokens[1]))
             line = self.out.readline().strip()
 
     def _parse_kill_file(self, line):
@@ -326,6 +337,7 @@ class Output(object):
                  'ATTACK AZIMUTH - SPECIFIC': self._parse_specific_attack_az,
                  'ATTACK AZIMUTH - AVERAGED': self._parse_averaged_attack_az,
                  'ANGLE OF FALL': self._parse_aof,
+                 'INVULNERABLE COMPONENTS': self._parse_invulnerable_components,
                  'CMPID': self._parse_blast_components,
                  'SRFID': self._parse_direct_hit_components,
                  'KILL DEFINITION FILE': self._parse_kill_file,

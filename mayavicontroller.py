@@ -53,6 +53,9 @@ class MayaviController:
 
         def picker_callback(pick):
             """ This get called on pick events. """
+            if not plotter.point_glyphs:
+                return
+
             if pick.actor in plotter.point_glyphs.actor.actors:
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is

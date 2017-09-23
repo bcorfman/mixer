@@ -74,14 +74,12 @@ class Plotter(Visualization):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
         model = self.model
         x, y, z, sz, color = [], [], [], [], []
-        for i in range(model.num_tables):  # iterates over real component AVs (no dummy components)
+        for i in model.frag_ids:
             x.append(model.comps[i].x)
             y.append(model.comps[i].y)
             z.append(model.comps[i].z)
             sz.append(0.3)
             color.append(1.0)
-        if not model.az_averaging:
-            color = [1.0 for _ in range(model.num_tables)]  # red for any by-azimuth AVs, since PEs don't apply.
         pts = self.scene.mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
                                        scalars=color, mode='sphere', scale_factor=1)
         pts.module_manager.scalar_lut_manager.reverse_lut = True
