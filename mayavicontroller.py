@@ -53,14 +53,14 @@ class MayaviController:
 
         def picker_callback(pick):
             """ This get called on pick events. """
-            if not plotter.point_glyphs:
+            if not plotter.burstpoint_glyphs:
                 return
 
-            if pick.actor in plotter.point_glyphs.actor.actors:
+            if pick.actor in plotter.burstpoint_glyphs.actor.actors:
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is
                 # represented by a glyph with several points
-                point_id = pick.point_id // plotter.point_array.shape[0]
+                point_id = pick.point_id // plotter.burstpoint_array.shape[0]
 
                 # If the no points have been selected, we have '-1'
                 if point_id != -1:

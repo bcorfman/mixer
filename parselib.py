@@ -281,6 +281,8 @@ class Output(object):
 
     def _parse_invulnerable_components(self, line):
         model = self.model
+        if 'NONE' in line:
+            return  # no invulnerable components; leave set empty.
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split(':')

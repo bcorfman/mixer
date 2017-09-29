@@ -4,6 +4,7 @@ os.environ['QT_API'] = 'pyqt'
 import math
 from numpy import array, full, eye, ones_like
 import util
+import vtk
 from tvtk.api import tvtk
 from mayavi import mlab
 from traits.api import HasTraits, Instance, on_trait_change
@@ -11,6 +12,8 @@ from traitsui.api import View, Item
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
 from mayavi.core.api import Engine
 from const import GYPSY_PINK
+
+
 
 """
 Created on Wed Nov 27 10:37:08 2013
@@ -62,8 +65,8 @@ class Plotter(Visualization):
         self.sel_x = []
         self.sel_y = []
         self.sel_z = []
-        self.point_array = None
-        self.point_glyphs = None
+        self.burstpoint_array = None
+        self.burstpoint_glyphs = None
         self.outline = None
         self.axes = None
         self.selected_az = None
@@ -135,69 +138,53 @@ class Plotter(Visualization):
                                str('Matrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_defl[0], model.mtx_extent_defl[1])),
                                scale=(sz, sz, sz), name='Matrix deflection coordinates')
 
-    def plot_blast_volume(self):
+    def plot_blast_volumes(self):
         model = self.model
         t = tvtk.Transform()
         t.rotate_x(90.0)
         p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
         for bidx in model.blast_ids:
             comp = model.comps[bidx]
-            r1, r2, r3, z1, z2 = model.blast_vol[bidx]  # 1 indexed
+            r1, r2, r3, z1, z2 = model.blast_vol[bidx]
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
-                sphere = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, phi_resolution=50,
-                                           theta_resolution=50)
-                surf = mlab.pipeline.surface(sphere.output, name='blast sphere %s' % comp.name)
-                surf.actor.actor.property = p
-                surf.actor.actor.user_transform = t
-            else:  # single cylinder merged with sphere cap
-                if z2 <= z1:
-                    z_offset = -z2 if z2 < 0 else 0
-                    tri1 = tvtk.TriangleFilter(input_connection=cap.output_port)
-                    tri2 = tvtk.TriangleFilter(input_connection=cyl.output_port)
-                    boolean_op = tvtk.BooleanOperationPolyDataFilter()
-                    boolean_op.operation = 'difference'
-                    boolean_op.add_input_connection(0, tri1.output_port)
-                    boolean_op.add_input_connection(1, tri2.output_port)
-                    boolean_op.update()
-                    lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
-                                                    height=z1, resolution=150, capping=True)
-                    combined_source = tvtk.AppendPolyData(input=lower_cyl.output)
-                    translate_mat = eye(4)
-                    translate_mat[0, 3] = comp.x
-                    translate_mat[1, 3] = z_offset
-                    translate_mat[2, 3] = comp.y
-                    translate = tvtk.Transform()
-                    translate.set_matrix(translate_mat.flatten())
-                    translater = tvtk.TransformPolyDataFilter(input=boolean_op.output)
-                    translater.transform = translate
-                    combined_source.add_input(translater.output)
-                else:  # double cylinder merged with sphere cap
-                    #lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
-                    #                                height=z1, resolution=150, capping=True)
-                    # add lower cylinder to combined volume
-                    #combined_source = tvtk.AppendPolyData(input_connection=lower_cyl.output_port)
-
-                    #z_join = math.sqrt(r3 * r3 - r2 * r2)
-                    #upper_cyl = tvtk.CylinderSource(center=(comp.x, ((z_join + z2 - z1) / 2.0) + z1, comp.y),
-                    #                                radius=r2, height=z_join + z2 - z1, resolution=150, capping=False)
-                    #cap = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, start_theta=0,
-                    #                        end_theta=180, phi_resolution=150, theta_resolution=150)
-                    #tri1 = tvtk.TriangleFilter(input_connection=upper_cyl.output_port)
-                    #tri2 = tvtk.TriangleFilter(input_connection=cap.output_port)
-                    #boolean_op = tvtk.BooleanOperationPolyDataFilter()
-                    #boolean_op.operation = 'intersection'
-                    #boolean_op.add_input_connection(0, tri1.output_port)
-                    #boolean_op.add_input_connection(1, tri2.output_port)
-                    #boolean_op.update()
-                    # add resulting intersecting cap to combined volume
-                    #combined_source.add_input_connection(boolean_op.output_port)
+                surf = mlab.pipeline.builtin_surface()
+                surf.source = 'sphere'
+                surf.data_source.center = (comp.x, z2, comp.y)
+                surf.data_source.radius = r3
+                surf.data_source.phi_resolution = 50
+                surf.data_source.theta_resolution = 50
+                # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
+                surf = mlab.pipeline.surface(surf, name='blast sphere %s' % comp.name)
+                surf.actor.actor.property = p  # add color
+                surf.actor.actor.user_transform = t  # rotate the volume into place
+            else:
+                # double cylinder merged with sphere cap
+                cap = tvtk.SphereSource(center=(comp.x, z2 + 0.01, comp.y), radius=r3, start_theta=0,
+                                        end_theta=180, phi_resolution=50, theta_resolution=50)
+                upper_cyl = tvtk.CylinderSource(center=(comp.x, (r3 + z2 - z1) / 2.0 + z1 + 0.01, comp.y), radius=r2,
+                                                height=r3 + z2 - z1, resolution=50, capping=False)
+                tri1 = tvtk.TriangleFilter(input_connection=cap.output_port)
+                tri2 = tvtk.TriangleFilter(input_connection=upper_cyl.output_port)
+                # calculate intersection of upper cylinder and sphere cap without displaying
+                # vtkDelaunay2D warnings about "edge not recovered, polygon fill suspect" on the console.
+                vtk.vtkObject.GlobalWarningDisplayOff()
+                boolean_op = tvtk.BooleanOperationPolyDataFilter()
+                boolean_op.operation = 'intersection'
+                boolean_op.add_input_connection(0, tri2.output_port)
+                boolean_op.add_input_connection(1, tri1.output_port)
+                boolean_op.update()
+                vtk.vtkObject.GlobalWarningDisplayOn()
+                combined_source = tvtk.AppendPolyData(input_connection=boolean_op.output_port)
+                lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
+                                                height=z1, resolution=50, capping=True)
+                combined_source.add_input_connection(lower_cyl.output_port)
+                combined_source.update()
 
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
-                #surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
-                #surf.actor.actor.property = p  # add color
-                #surf.actor.actor.user_transform = t  # rotate the volume
-                    pass
+                surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
+                surf.actor.actor.property = p  # add color
+                surf.actor.actor.user_transform = t  # rotate the volume into place
 
     def plot_munition(self):
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,
@@ -262,14 +249,15 @@ class Plotter(Visualization):
             self.sel_z.append(points[key][az][2])
         # setting the scalars here is necessary to avoid VTK error: "Algorithm vtkAssignAttribute returned failure
         # for request: vtkInformation". See https://github.com/enthought/mayavi/issues/3
-        if self.point_glyphs is None:
-            self.point_glyphs = self.scene.mlab.points3d(self.sel_x, self.sel_y, self.sel_z, ones_like(self.sel_x),
-                                                         color=(1, 1, 1), scale_factor=0.75)
+        if self.burstpoint_glyphs is None:
+            self.burstpoint_glyphs = self.scene.mlab.points3d(self.sel_x, self.sel_y, self.sel_z, ones_like(self.sel_x),
+                                                              color=(1, 1, 1), scale_factor=0.75)
         else:
-            self.point_glyphs.mlab_source.set(x=self.sel_x, y=self.sel_y, z=self.sel_z, scalars=ones_like(self.sel_x))
+            self.burstpoint_glyphs.mlab_source.set(x=self.sel_x, y=self.sel_y, z=self.sel_z,
+                                                   scalars=ones_like(self.sel_x))
         # Here, we grab the points describing the individual glyph, to figure
         # out how many points are in an individual glyph.
-        self.point_array = self.point_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
+        self.burstpoint_array = self.burstpoint_glyphs.glyph.glyph_source.glyph_source.output.points.to_array()
 
     @on_trait_change('scene.activated')
     def update_plot(self):
@@ -278,8 +266,8 @@ class Plotter(Visualization):
         if model.pks is not None:
             self.plot_matrix_file()  # matrix can be plotted if it was read in
         self.plot_srf_file()
-        #if model.blast_ids:
-            #self.plot_blast_volume()  # plot blast volume if blast damage was included in output
+        if model.blast_ids:
+            self.plot_blast_volumes()
         self.plot_av()
         self.plot_munition()
         if model.sample_loc:
