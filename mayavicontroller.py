@@ -2,7 +2,6 @@ from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
-from collections import ChainMap
 
 
 class MayaviController:

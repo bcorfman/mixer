@@ -148,14 +148,14 @@ class Plotter(Visualization):
             r1, r2, r3, z1, z2 = model.blast_vol[bidx]
             if r1 == 0 or r2 == 0 or z1 == 0:
                 # blast sphere
-                surf = mlab.pipeline.builtin_surface()
-                surf.source = 'sphere'
-                surf.data_source.center = (comp.x, z2, comp.y)
-                surf.data_source.radius = r3
-                surf.data_source.phi_resolution = 50
-                surf.data_source.theta_resolution = 50
+                source_obj = mlab.pipeline.builtin_surface()
+                source_obj.source = 'sphere'
+                source_obj.data_source.center = (comp.x, z2, comp.y)
+                source_obj.data_source.radius = r3
+                source_obj.data_source.phi_resolution = 50
+                source_obj.data_source.theta_resolution = 50
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
-                surf = mlab.pipeline.surface(surf, name='blast sphere %s' % comp.name)
+                surf = mlab.pipeline.surface(source_obj, name='blast sphere %s' % comp.name)
                 surf.actor.actor.property = p  # add color
                 surf.actor.actor.user_transform = t  # rotate the volume into place
             else:
@@ -175,14 +175,13 @@ class Plotter(Visualization):
                 boolean_op.add_input_connection(1, tri1.output_port)
                 boolean_op.update()
                 vtk.vtkObject.GlobalWarningDisplayOn()
-                combined_source = tvtk.AppendPolyData(input_connection=boolean_op.output_port)
+                source_obj = tvtk.AppendPolyData(input_connection=boolean_op.output_port)
                 lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
                                                 height=z1, resolution=50, capping=True)
-                combined_source.add_input_connection(lower_cyl.output_port)
-                combined_source.update()
-
+                source_obj.add_input_connection(lower_cyl.output_port)
+                source_obj.update()
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
-                surf = mlab.pipeline.surface(combined_source.output, name='blast volume %s' % comp.name)
+                surf = mlab.pipeline.surface(source_obj.output, name='blast volume %s' % comp.name)
                 surf.actor.actor.property = p  # add color
                 surf.actor.actor.user_transform = t  # rotate the volume into place
 
@@ -262,6 +261,7 @@ class Plotter(Visualization):
     @on_trait_change('scene.activated')
     def update_plot(self):
         model = self.model
+        self.scene.scene_editor._tool_bar.setVisible(False)
         self.scene.disable_render = True  # generate scene more quickly by temporarily turning off rendering
         if model.pks is not None:
             self.plot_matrix_file()  # matrix can be plotted if it was read in
@@ -276,7 +276,7 @@ class Plotter(Visualization):
         self.axes.visible = False
         self.scene.disable_render = False  # reinstate display
         super(Plotter, self).update_plot()
-        self.scene.mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
+        self.reset_view()
 
     def update_point_detail(self, az, points):
         self.selected_az = az
@@ -301,7 +301,7 @@ class Plotter(Visualization):
         return x, y, z
 
     def reset_view(self):
-        self.scene.mlab.view(azimuth=0, elevation=30, distance=150, focalpoint=(0, 0, 50))
+        self.scene.mlab.view(azimuth=315, elevation=83, distance=self.model.volume_radius * 6, focalpoint=(0, 0, 20))
 
     def save_view_to_file(self, filename):
         self.scene.mlab.savefig(filename)

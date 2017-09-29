@@ -60,7 +60,7 @@ class DataModel(object):
         self.burst_loc = None
 
     def read_and_transform_all_files(self, out_file):
-        av_file, srf_file, mtx_file, kill_file, self.dtl_file = Output(self).read(out_file)
+        av_file, srf_file, mtx_file, kill_file, dtl_file = Output(self).read(out_file)
         if av_file is None:
             raise IOError("Case didn't complete.")
         AV(self).read(av_file)
@@ -69,10 +69,11 @@ class DataModel(object):
         if exists(mtx_file):
             Matrix(self).read(mtx_file)
             self.transform_matrix()
-        if exists(self.dtl_file):
+        if exists(dtl_file):
             detail = Detail(self)
-            if detail.validate(self.dtl_file):
-                detail.read(self.dtl_file)
+            if detail.validate(dtl_file):
+                detail.read(dtl_file)
+                self.dtl_file = dtl_file
             else:
                 raise IOError(".dtl file does not have the full level of detail.")
         kill_comps = set(self.extract_components(self.mtx_kill_id))
