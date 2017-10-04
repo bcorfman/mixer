@@ -2,6 +2,7 @@ from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
+from access import CellBounds, PointBounds
 
 
 class MayaviController:
@@ -12,36 +13,18 @@ class MayaviController:
         self.plotter = plotter = Plotter(model)
 
         # set up window controls and events
-        view.closeEvent = self.closeEvent
         view.rdoSample.setChecked(True)
-        view.rdoSample.clicked.connect(self.on_rdo_sample)
-        view.rdoBurst.clicked.connect(self.on_rdo_burst)
-        view.btnSave.clicked.connect(self.on_btn_save_clicked)
-        view.btnHome.clicked.connect(self.on_btn_home_clicked)
-        view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
-        view.btnClearSel.clicked.connect(self.on_btn_clear_clicked)
+        self.set_window_events(view)
 
         if model.az_averaging and model.dtl_file is not None:
-            layout = view.frmAzimuth.layout()
-            point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
-            label_text = 'View {0} points at attack azimuth:'.format(point_type)
-            view.lblAzimuth = QtGui.QLabel(label_text, view.frmAzimuth)
-            layout.addWidget(view.lblAzimuth)
-            view.buttonGroup = QtGui.QButtonGroup(view.frmAzimuth)
-            view.buttonGroup.buttonClicked.connect(self.on_rdo_azimuth_clicked)
-            for az in range(0, 360, int(model.attack_az)):
-                rdo_button = QtGui.QRadioButton('{0} degrees'.format(az), view.frmAzimuth)
-                layout.addWidget(rdo_button)
-                view.buttonGroup.addButton(rdo_button, az)
-                if az == 0:
-                    rdo_button.setChecked(True)
+            self.setup_detailed_output_frames(model, view)
         else:
             view.frmAzimuth.setVisible(False)
             view.frmDetail.setVisible(False)
 
         # when this code is called, the sample points or burstpoints in the plotter are initialized only.
-        # They cannot be drawn until the Mayavi widget is created here and the scene is activated (and then
-        # plotter.update_plot is called).
+        # They cannot be drawn until the Mayavi widget is created, and the scene is activated (which fires
+        # plotter.update_plot).
         if model.dtl_file is not None:
             points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
             az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
@@ -50,12 +33,10 @@ class MayaviController:
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
 
-        def picker_callback(pick):
-            """ This get called on pick events. """
-            if not plotter.burstpoint_glyphs:
-                return
-
-            if pick.actor in plotter.burstpoint_glyphs.actor.actors:
+        def point_picker_callback(pick):
+            """ This gets called on pick events. """
+            print("point callback")
+            if plotter.burstpoint_glyphs and pick.actor in plotter.burstpoint_glyphs.actor.actors:
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is
                 # represented by a glyph with several points
@@ -70,14 +51,66 @@ class MayaviController:
                     # Move the outline to the data point.
                     # Add an outline to show the selected point and center it on the first
                     # data point.
-                    x, y, z = plotter.set_outline()
-                    self.print_point_details(pid, x, y, z)
+                    pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
+                    azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
+                    x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
+                    extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
+                    pb = plotter.outline = PointBounds(plotter, extent)
+                    pb.display()
+                    self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
 
-        if model.dtl_file is not None:
-            figure = plotter.scene.mlab.gcf()
-            picker = figure.on_mouse_pick(picker_callback)
-            picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+        def cell_picker_callback(pick):
+            """ This gets called on pick events. """
+            print("cell callback")
+            if plotter.rgrid is None or pick.mapper is None:
+                return
 
+            # Find PK for selected cell
+            if pick.cell_id != -1:
+                # determine cell boundaries and use them to set outline
+                num_cells_rng, num_cells_defl = len(self.model.cell_size_range), len(self.model.cell_size_defl)
+                cell_rng, cell_defl = self.cellID // num_cells_rng, self.cellID % num_cells_defl
+                rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
+                defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
+                self.x = (defl_max - defl_min) / 2.0
+                self.y = (rng_max - rng_min) / 2.0
+                self.z = 0.1
+                extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
+                pk = pick.mapper.input.cell_data.scalars[pick.cell_id]
+                cb = plotter.outline = CellBounds(plotter, extent, pk)
+                cb.display()
+
+        figure = plotter.scene.mlab.gcf()
+        cell_picker = figure.on_mouse_pick(cell_picker_callback, type='cell')
+        cell_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+        point_picker = figure.on_mouse_pick(point_picker_callback, type='point')
+        point_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+
+    def set_window_events(self, view):
+        view.closeEvent = self.closeEvent
+        view.rdoSample.clicked.connect(self.on_rdo_sample)
+        view.rdoBurst.clicked.connect(self.on_rdo_burst)
+        view.btnSave.clicked.connect(self.on_btn_save_clicked)
+        view.btnHome.clicked.connect(self.on_btn_home_clicked)
+        view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
+        view.btnClearSel.clicked.connect(self.on_btn_clear_clicked)
+
+    def setup_detailed_output_frames(self, model, view):
+        layout = view.frmAzimuth.layout()
+        point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
+        label_text = 'View {0} points at attack azimuth:'.format(point_type)
+        view.lblAzimuth = QtGui.QLabel(label_text, view.frmAzimuth)
+        layout.addWidget(view.lblAzimuth)
+        view.buttonGroup = QtGui.QButtonGroup(view.frmAzimuth)
+        view.buttonGroup.buttonClicked.connect(self.on_rdo_azimuth_clicked)
+        for az in range(0, 360, int(model.attack_az)):
+            rdo_button = QtGui.QRadioButton('{0} degrees'.format(az), view.frmAzimuth)
+            layout.addWidget(rdo_button)
+            view.buttonGroup.addButton(rdo_button, az)
+            if az == 0:
+                rdo_button.setChecked(True)
+
+    # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
     def print_point_details(self, pid, x, y, z):
         model = self.model
         if self.view.rdoSample.isChecked():
@@ -125,29 +158,27 @@ class MayaviController:
     def on_btn_clear_clicked(self):
         self.plotter.turn_off_outline()
         self.view.txtInfo.setPlainText("")
-        
+
+    # noinspection PyUnusedLocal
     def on_rdo_azimuth_clicked(self, button):
         self.view.txtInfo.setPlainText("")
-        if self.model.sample_loc:  # set if detail file was read
-            self.update_radius_params()
-            x, y, z = self.plotter.set_outline()
-            self.print_point_details(self.plotter.pid, x, y, z)
+        self.update_radius_params()
+        outline = self.plotter.outline
+        self.print_point_details(self.plotter.pid, outline.x_mid, outline.y_mid, outline.z_mid)
 
     def on_rdo_sample(self):
         self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
-        if self.model.sample_loc:  # set if detail file was read
-            self.update_radius_params()
-            x, y, z = self.plotter.set_outline()
-            self.print_point_details(self.plotter.pid, x, y, z)
+        self.update_radius_params()
+        outline = self.plotter.outline
+        self.print_point_details(self.plotter.pid, outline.x_mid, outline.y_mid, outline.z_mid)
 
     def on_rdo_burst(self):
         self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
-        if self.model.sample_loc:  # set if detail file was read
-            self.update_radius_params()
-            x, y, z = self.plotter.set_outline()
-            self.print_point_details(self.plotter.pid, x, y, z)
+        self.update_radius_params()
+        outline = self.plotter.outline
+        self.print_point_details(self.plotter.pid, outline.x_mid, outline.y_mid, outline.z_mid)
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():
@@ -164,7 +195,6 @@ class MayaviController:
         points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         self.plotter.update_point_detail(az, points)
-        if model.sample_loc:  # set if detail file was read
-            self.plotter.plot_detail()
+        self.plotter.plot_detail()
 
 

@@ -1,6 +1,3 @@
-import os
-os.environ['ETS_TOOLKIT'] = 'qt4'
-os.environ['QT_API'] = 'pyqt'
 import math
 from numpy import array, full, eye, ones_like
 import util
@@ -72,6 +69,9 @@ class Plotter(Visualization):
         self.selected_az = None
         self.radius_points = None
         self.pid = None
+        self.rgrid = None
+        self.rgrid_array = None
+        self.pk_text = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -104,19 +104,19 @@ class Plotter(Visualization):
         # Set the single Z coordinate in the elevation array equal to the munition burst height.
         elevations = full(1, 0.0)
         x_dim, y_dim, z_dim = len(model.gridlines_range), len(model.gridlines_defl), len(elevations)
-        rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
-                                     z_coordinates=elevations, dimensions=(x_dim, y_dim, z_dim))
+        self.rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
+                                          z_coordinates=elevations, dimensions=(x_dim, y_dim, z_dim))
         # Grid colors are displayed using an additional array (PKs).
         # T transposes the 2D PK array to match the gridline cells and then
         # ravel() flattens the 2D array to a 1D array for VTK use as scalars.
-        rgrid.cell_data.scalars = model.pks.T.ravel()
-        rgrid.cell_data.scalars.name = 'pks'
-        rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
+        self.rgrid.cell_data.scalars = model.pks.T.ravel()
+        self.rgrid.cell_data.scalars.name = 'pks'
+        self.rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
         p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
 
         # this method puts the surface in the Mayavi pipeline so the user can change it.
-        surf = self.scene.mlab.pipeline.surface(rgrid, name='matrix')
+        surf = self.scene.mlab.pipeline.surface(self.rgrid, name='matrix')
         surf.actor.actor.property = p
         surf.actor.update_data()
 
@@ -216,7 +216,8 @@ class Plotter(Visualization):
             # label arrow with text describing terminal conditions
             format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity\n{3} ft. burst height'
             label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-            self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
+            self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz),
+                                   name='munition-text')
         else:
             for az in range(0, 360, int(model.attack_az)):
                 xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
@@ -231,14 +232,10 @@ class Plotter(Visualization):
                     format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity\n'
                     format_str += '{3} fr. burst height'
                     label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-                    self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz), name='munition-text')
+                    self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz),
+                                           name='munition-text')
 
     def plot_detail(self):
-        """
-        :param az: azimuth value used as an index for the points dictionary.
-        :param points: dictionary that holds either sample point or burst point locations
-        :return: None
-        """
         self.sel_x, self.sel_y, self.sel_z = [], [], []
         points = self.radius_points
         az = self.selected_az
@@ -261,6 +258,7 @@ class Plotter(Visualization):
     @on_trait_change('scene.activated')
     def update_plot(self):
         model = self.model
+        # noinspection PyProtectedMember
         self.scene.scene_editor._tool_bar.setVisible(False)
         self.scene.disable_render = True  # generate scene more quickly by temporarily turning off rendering
         if model.pks is not None:
@@ -278,27 +276,8 @@ class Plotter(Visualization):
         super(Plotter, self).update_plot()
         self.reset_view()
 
-    def update_point_detail(self, az, points):
-        self.selected_az = az
-        self.radius_points = points
-
     def turn_off_outline(self):
         self.outline.visible = False
-
-    def set_outline(self):
-        if self.outline is None:
-            self.outline = self.scene.mlab.outline(line_width=3)
-            # self.outline.outline_mode = 'cornered'
-            self.outline.manual_bounds = True
-
-        x = self.radius_points[self.pid][self.selected_az][0]
-        y = self.radius_points[self.pid][self.selected_az][1]
-        z = self.radius_points[self.pid][self.selected_az][2]
-        self.outline.bounds = (x - 0.5, x + 0.5,
-                               y - 0.5, y + 0.5,
-                               z - 0.5, z + 0.5)
-        self.outline.visible = True
-        return x, y, z
 
     def reset_view(self):
         self.scene.mlab.view(azimuth=315, elevation=83, distance=self.model.volume_radius * 6, focalpoint=(0, 0, 20))
