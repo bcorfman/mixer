@@ -1,5 +1,5 @@
 import math
-from numpy import array, full, eye, ones_like
+from numpy import array, full, ones_like
 import util
 import vtk
 from tvtk.api import tvtk
@@ -10,12 +10,11 @@ from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
 from mayavi.core.api import Engine
 from const import GYPSY_PINK
 
-
-
 """
 Created on Wed Nov 27 10:37:08 2013
 """
 __author__ = 'brandon.corfman'
+# noinspection SpellCheckingInspection
 __doc__ = '''
     Plot a target scene using JMAE input and output files.
 
@@ -29,8 +28,6 @@ __doc__ = '''
 
 
 ######################################################################
-
-
 class Visualization(HasTraits):
     scene = Instance(MlabSceneModel)
 
@@ -72,6 +69,7 @@ class Plotter(Visualization):
         self.rgrid = None
         self.rgrid_array = None
         self.pk_text = None
+        self.access_obj = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -89,6 +87,7 @@ class Plotter(Visualization):
         pts.glyph.color_mode = 'color_by_scalar'
         pts.glyph.glyph_source.glyph_source.center = (0, 0, 0)
 
+    # noinspection SpellCheckingInspection
     def plot_srf_file(self):
         model = self.model
         polys = array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) // 4)])
@@ -97,6 +96,7 @@ class Plotter(Visualization):
         self.target.actor.property.representation = 'wireframe'
         self.target.actor.property.color = (0, 0, 0)
 
+    # noinspection SpellCheckingInspection
     def plot_matrix_file(self):
         model = self.model
 
@@ -275,9 +275,6 @@ class Plotter(Visualization):
         self.scene.disable_render = False  # reinstate display
         super(Plotter, self).update_plot()
         self.reset_view()
-
-    def turn_off_outline(self):
-        self.outline.visible = False
 
     def reset_view(self):
         self.scene.mlab.view(azimuth=315, elevation=83, distance=self.model.volume_radius * 6, focalpoint=(0, 0, 20))

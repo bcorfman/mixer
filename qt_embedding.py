@@ -76,6 +76,7 @@ class MayaviQWidget(QtGui.QWidget):
 
 
 if __name__ == "__main__":
+    # noinspection PyArgumentList
     app = QtGui.QApplication.instance()
     container = load_ui_widget('mayavi_win.ui')
     #container = QtGui.QWidget()

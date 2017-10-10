@@ -52,6 +52,7 @@ class DataModel(object):
         self.mtx_kill_id = None
         self.frag_ids = None
         self.blast_ids = None
+        # noinspection SpellCheckingInspection
         self.invuln_ids = None
         self.dh_ids = None
         self.dtl_file = None

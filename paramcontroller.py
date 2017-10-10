@@ -9,6 +9,7 @@ from uiloader import load_ui_widget
 from mayavicontroller import MayaviController
 
 
+# noinspection SpellCheckingInspection
 class ParamController:
     def __init__(self, app, dlg, start_dir, out_files):
         self.win = None
@@ -87,6 +88,7 @@ class ParamController:
 
     # TODO: How to do this effectively -- there are multiple links between objects
     # TODO: to cleanup before they will get GC'd.
+    # noinspection SpellCheckingInspection
     def remove_controller(self, ctlr):
         self.controllers.remove(ctlr)
         del ctlr

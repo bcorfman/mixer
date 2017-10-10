@@ -1,9 +1,10 @@
 import os
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 
 __author__ = 'brandon.corfman'
 
 
+# noinspection SpellCheckingInspection,SpellCheckingInspection
 class IniParser(object):
     def __init__(self, dlg):
         self.dlg = dlg
@@ -14,7 +15,7 @@ class IniParser(object):
         self.term_vel = None
         self.burst_height = None
         self.pk_surface = None
-        self.parser = SafeConfigParser()
+        self.parser = ConfigParser()
 
     def read_ini_file(self):
         ini_path = os.path.abspath(os.curdir) + os.sep + 'jmaeout.ini'

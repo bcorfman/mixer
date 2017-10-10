@@ -4,19 +4,21 @@ import os
 os.environ['ETS_TOOLKIT'] = 'qt4'
 os.environ['QT_API'] = 'pyqt'
 import pyqt4_hook
-from PyQt4 import QtGui, QtCore
+from PyQt4 import QtGui
 from paramcontroller import ParamController
 from uiloader import load_ui_widget
 from inifile import IniParser
 
-if __name__ == '__main__':
+
+# noinspection PyArgumentList
+def main():
     print('Running in ' + os.getcwd() + '.\n')
     app = QtGui.QApplication.instance()
     param_dlg = load_ui_widget('paramdlg.ui')
     geo = param_dlg.frameGeometry()
     height, width = geo.height(), geo.width()
-    x, y = geo.x(), geo.y()
     desktop = app.desktop()
+    # noinspection PyArgumentList
     desk_rect = desktop.screenGeometry(desktop.screenNumber(QtGui.QCursor.pos()))
     screen_height, screen_width = desk_rect.height(), desk_rect.width()
     param_dlg.setGeometry((screen_width - width) / 2 + desk_rect.left(),
@@ -31,4 +33,8 @@ if __name__ == '__main__':
     app.exec_()
     app.deleteLater()
     sys.exit()
+
+
+if __name__ == '__main__':
+    main()
 

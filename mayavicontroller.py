@@ -1,16 +1,38 @@
+import types
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
+from tvtk.api import tvtk
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
 from access import CellBounds, PointBounds
 
 
+def on_pick(self, vtk_picker, event):
+    """ Dispatch the pick to the callback associated with the
+        corresponding mouse button; if callback has been handled,
+        then skip any further callbacks.
+    """
+    handled = False
+    picker = tvtk.to_tvtk(vtk_picker)
+    for event_type, event_picker in self._active_pickers.items():
+        if picker is event_picker:
+            for callback, type, button in self.callbacks:
+                if type == event_type and button == self._current_button:
+                    handled = callback(picker)
+                    if handled:
+                        break
+        if handled:
+            break
+
+
+# noinspection PyProtectedMember
 class MayaviController:
     def __init__(self, model, view, working_dir):
         self.model = model
         self.view = view
         self.working_dir = working_dir
         self.plotter = plotter = Plotter(model)
+        self.dispatcher = None
 
         # set up window controls and events
         view.rdoSample.setChecked(True)
@@ -55,36 +77,41 @@ class MayaviController:
                     azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
                     x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
                     extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
-                    pb = plotter.outline = PointBounds(plotter, extent)
+                    pb = plotter.access_obj = PointBounds(plotter, extent)
                     pb.display()
                     self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
+                    return True
+            return False
 
         def cell_picker_callback(pick):
             """ This gets called on pick events. """
             print("cell callback")
-            if plotter.rgrid is None or pick.mapper is None:
-                return
+            if plotter.rgrid is None or pick.cell_id == -1 or pick.mapper.input.cell_data.scalars is None:
+                return False
 
+            # determine cell boundaries and use them to set outline
+            num_cells_rng, num_cells_defl = len(self.model.cell_size_range), len(self.model.cell_size_defl)
+            cell_defl, cell_rng = pick.cell_id // num_cells_defl, pick.cell_id % num_cells_rng
+            rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
+            defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
+            # TODO: Do I need this? Midpoint calculation isn't right -- doesn't add in min as last step.
+            self.x = (defl_max - defl_min) / 2.0
+            self.y = (rng_max - rng_min) / 2.0
+            self.z = 0.1
+            extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
             # Find PK for selected cell
-            if pick.cell_id != -1:
-                # determine cell boundaries and use them to set outline
-                num_cells_rng, num_cells_defl = len(self.model.cell_size_range), len(self.model.cell_size_defl)
-                cell_rng, cell_defl = self.cellID // num_cells_rng, self.cellID % num_cells_defl
-                rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
-                defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
-                self.x = (defl_max - defl_min) / 2.0
-                self.y = (rng_max - rng_min) / 2.0
-                self.z = 0.1
-                extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
-                pk = pick.mapper.input.cell_data.scalars[pick.cell_id]
-                cb = plotter.outline = CellBounds(plotter, extent, pk)
-                cb.display()
+            pk = pick.mapper.input.cell_data.scalars[pick.cell_id]
+            cb = plotter.access_obj = CellBounds(plotter, extent, pk)
+            cb.display()
+            return True
 
         figure = plotter.scene.mlab.gcf()
+        # monkey patch the MousePickDispatcher.on_pick method with my enhanced version
+        figure._mouse_pick_dispatcher.on_pick = types.MethodType(on_pick, figure._mouse_pick_dispatcher)
+        if model.dtl_file is not None:
+            point_picker = figure.on_mouse_pick(point_picker_callback, type='point')
+            point_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
         cell_picker = figure.on_mouse_pick(cell_picker_callback, type='cell')
-        cell_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
-        point_picker = figure.on_mouse_pick(point_picker_callback, type='point')
-        point_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
 
     def set_window_events(self, view):
         view.closeEvent = self.closeEvent
