@@ -1,12 +1,16 @@
+from tvtk.api import tvtk
+from mayavi import mlab
+
+
 class AccessObj:
     """ Access object for the Plotter class. Takes input from the point pick callback and displays it."""
     def __init__(self, plotter, extent):
         self.plotter = plotter
         self.extent = extent
         x_min, x_max, y_min, y_max, z_min, z_max = extent
-        self.x_mid = (x_max - x_min) / 2.0
-        self.y_mid = (y_max - y_min) / 2.0
-        self.z_mid = (z_max - z_min) / 2.0
+        self.x_mid = (x_max - x_min) / 2.0 + x_min
+        self.y_mid = (y_max - y_min) / 2.0 + y_min
+        self.z_mid = (z_max - z_min) / 2.0 + z_min
 
     def display(self, show):
         plotter = self.plotter
@@ -48,9 +52,12 @@ class CellBounds(AccessObj):
         plotter.outline.bounds = (y_min, y_max, x_min, x_max, z_min, z_max)
         txt = "%4.2f" % self.pk
         if show and plotter.pk_text is None:
-            plotter.pk_text = plotter.scene.mlab.text3d(self.x_mid, self.y_mid, self.z_mid + 5, txt,
-                                                        color=(1, 1, 1), scale=(3, 3, 3), name='pk-text')
-        plotter.pk_text.position = (self.x_mid, self.y_mid, self.z_mid + 5)
+            plotter.pk_text = tvtk.BillboardTextActor3D()
+            plotter.pk_text.text_property.justification = 'center'
+            plotter.pk_text.text_property.font_size = 18
+            plotter.pk_text.text_property.color = (1.0, 1.0, 0.4)
+            mlab.pipeline.surface(plotter.pk_text.output, name='pk-text')
+        plotter.pk_text.position = (self.y_mid, self.x_mid, self.z_mid + 5)
         plotter.pk_text.text = txt
         plotter.pk_text.visible = show
 

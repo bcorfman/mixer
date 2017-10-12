@@ -94,10 +94,6 @@ class MayaviController:
             cell_defl, cell_rng = pick.cell_id // num_cells_defl, pick.cell_id % num_cells_rng
             rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
             defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
-            # TODO: Do I need this? Midpoint calculation isn't right -- doesn't add in min as last step.
-            self.x = (defl_max - defl_min) / 2.0
-            self.y = (rng_max - rng_min) / 2.0
-            self.z = 0.1
             extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
             # Find PK for selected cell
             pk = pick.mapper.input.cell_data.scalars[pick.cell_id]
@@ -111,7 +107,7 @@ class MayaviController:
         if model.dtl_file is not None:
             point_picker = figure.on_mouse_pick(point_picker_callback, type='point')
             point_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
-        cell_picker = figure.on_mouse_pick(cell_picker_callback, type='cell')
+        figure.on_mouse_pick(cell_picker_callback, type='cell')
 
     def set_window_events(self, view):
         view.closeEvent = self.closeEvent
