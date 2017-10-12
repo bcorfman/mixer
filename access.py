@@ -1,5 +1,4 @@
 from tvtk.api import tvtk
-from mayavi import mlab
 
 
 class AccessObj:
@@ -56,10 +55,14 @@ class CellBounds(AccessObj):
             plotter.pk_text.text_property.justification = 'center'
             plotter.pk_text.text_property.font_size = 18
             plotter.pk_text.text_property.color = (1.0, 1.0, 0.4)
-            mlab.pipeline.surface(plotter.pk_text.output, name='pk-text')
-        plotter.pk_text.position = (self.y_mid, self.x_mid, self.z_mid + 5)
-        plotter.pk_text.text = txt
-        plotter.pk_text.visible = show
+            plotter.pk_text.position = (self.y_mid, self.x_mid, self.z_mid + 5)
+            plotter.pk_text.input = txt
+            plotter.pk_text.visibility = show
+            plotter.scene.add_actor(plotter.pk_text)
+        else:
+            plotter.pk_text.position = (self.y_mid, self.x_mid, self.z_mid + 5)
+            plotter.pk_text.input = txt
+            plotter.pk_text.visibility = show
 
     # noinspection PyMethodMayBeStatic
     def is_cell_outline(self):

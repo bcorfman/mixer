@@ -58,6 +58,7 @@ class MayaviController:
         def point_picker_callback(pick):
             """ This gets called on pick events. """
             print("point callback")
+            print(pick)
             if plotter.burstpoint_glyphs and pick.actor in plotter.burstpoint_glyphs.actor.actors:
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is
@@ -85,20 +86,21 @@ class MayaviController:
 
         def cell_picker_callback(pick):
             """ This gets called on pick events. """
-            print("cell callback")
-            if plotter.rgrid is None or pick.cell_id == -1 or pick.mapper.input.cell_data.scalars is None:
-                return False
-
             # determine cell boundaries and use them to set outline
+            pk, extent = self.get_cell_info(pick.pick_position)
+            if pk is None:
+                return True
             num_cells_rng, num_cells_defl = len(self.model.cell_size_range), len(self.model.cell_size_defl)
             cell_defl, cell_rng = pick.cell_id // num_cells_defl, pick.cell_id % num_cells_rng
             rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
             defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
             extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
             # Find PK for selected cell
-            pk = pick.mapper.input.cell_data.scalars[pick.cell_id]
+            #pk = pick.mapper.input.cell_data.scalars[pick.cell_id]
+            #print(pk2, extent2)
+            pk = 1.0
             cb = plotter.access_obj = CellBounds(plotter, extent, pk)
-            cb.display()
+            cb.display(True)
             return True
 
         figure = plotter.scene.mlab.gcf()
@@ -107,7 +109,31 @@ class MayaviController:
         if model.dtl_file is not None:
             point_picker = figure.on_mouse_pick(point_picker_callback, type='point')
             point_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
-        figure.on_mouse_pick(cell_picker_callback, type='cell')
+        cell_picker = figure.on_mouse_pick(cell_picker_callback, type='cell')
+
+    def get_cell_info(self, selection_point):
+        defl = selection_point[1] + self.model.offset_defl + self.model.tgt_center[1]
+        rng = selection_point[0] + self.model.offset_range + self.model.tgt_center[0]
+        defl_index = None
+        gridlines_defl = self.model.gridlines_defl
+        gridlines_range = list(reversed(self.model.gridlines_range))
+        for i in range(len(gridlines_defl) - 1):
+            if gridlines_defl[i] >= defl >= gridlines_defl[i+1]:
+                defl_index = i
+                break
+        rng_index = None
+        for i in range(len(gridlines_range) - 1):
+            if gridlines_range[i] <= rng <= gridlines_range[i+1]:
+                rng_index = i
+                break
+        if defl_index is None or rng_index is None:
+            return None, None
+        else:
+            pk = self.model.pks[rng_index, defl_index]
+            extent = (self.model.gridlines_defl[defl_index+1], self.model.gridlines_defl[defl_index],
+                      self.model.gridlines_range[rng_index+1], self.model.gridlines_range[rng_index],
+                      0.1, 0.1)
+            return pk, extent
 
     def set_window_events(self, view):
         view.closeEvent = self.closeEvent
@@ -219,5 +245,4 @@ class MayaviController:
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         self.plotter.update_point_detail(az, points)
         self.plotter.plot_detail()
-
 
