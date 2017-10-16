@@ -461,7 +461,6 @@ class Matrix(object):
         self.mtx = None
         model.cls_range, model.cls_defl = None, None
         model.offset_range, model.offset_defl = None, None
-        model.gridlines_range, model.gridlines_defl = None, None
         model.gridlines_range_mid, model.gridlines_defl_mid = None, None
         model.cell_size_range, model.cell_size_defl = None, None
         model.pks = None
