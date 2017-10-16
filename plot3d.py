@@ -8,6 +8,7 @@ from traits.api import HasTraits, Instance, on_trait_change
 from traitsui.api import View, Item
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
 from mayavi.core.api import Engine
+from callout import Callout
 from const import GYPSY_PINK
 
 """
@@ -68,6 +69,9 @@ class Plotter(Visualization):
         self.pid = None
         self.rgrid = None
         self.rgrid_array = None
+        self.rng_callout = None
+        self.defl_callout = None
+        self.mun_callout = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -129,12 +133,15 @@ class Plotter(Visualization):
         # Also, scale the text to a readable size.
         sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 100))
         spacing = max(5, sz)
-        self.scene.mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing + 2 * sz,
-                               str('Matrix range: (%5.1f, %5.1f)' % (model.mtx_extent_range[0], model.mtx_extent_range[1])),
-                               scale=(sz, sz, sz), name='Matrix range coordinates')
-        self.scene.mlab.text3d(model.gridlines_range[-1], model.gridlines_defl[0], 5 * spacing,
-                               str('Matrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_defl[0], model.mtx_extent_defl[1])),
-                               scale=(sz, sz, sz), name='Matrix deflection coordinates')
+        rng_text = 'Matrix range: (%5.1f, %5.1f)' % (model.mtx_extent_range[0], model.mtx_extent_range[1])
+        defl_text = 'Matrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_defl[0], model.mtx_extent_defl[1])
+        self.rng_callout = Callout(rng_text, justification='left', font_size=18, color=(1, 1, 1),
+                                   position=(model.gridlines_range[-1], model.gridlines_defl[0],
+                                             4 * spacing + 2.5 * sz))
+        self.scene.add_actor(self.rng_callout.actor)
+        self.defl_callout = Callout(defl_text, justification='left', font_size=18, color=(1, 1, 1),
+                                    position=(model.gridlines_range[-1], model.gridlines_defl[0], 4 * spacing))
+        self.scene.add_actor(self.defl_callout.actor)
 
     def plot_blast_volumes(self):
         model = self.model
@@ -214,8 +221,9 @@ class Plotter(Visualization):
             # label arrow with text describing terminal conditions
             format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity\n{3} ft. burst height'
             label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-            self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz),
-                                   name='munition-text')
+            self.mun_callout = Callout(label, justification='left', font_size=14, color=(1, 1, 1),
+                                       position=(xloc, yloc, zloc + 8))
+            self.scene.add_actor(self.mun_callout.actor)
         else:
             for az in range(0, 360, int(model.attack_az)):
                 xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
@@ -230,8 +238,9 @@ class Plotter(Visualization):
                     format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity\n'
                     format_str += '{3} fr. burst height'
                     label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
-                    self.scene.mlab.text3d(xloc, yloc, zloc + 8, label, color=(1, 1, 1), scale=(sz, sz, sz),
-                                           name='munition-text')
+                    self.mun_callout = Callout(label, justification='left', font_size=14, color=(1, 1, 1),
+                                               position=(xloc, yloc, zloc + 8))
+                    self.scene.add_actor(self.mun_callout.actor)
 
     def plot_detail(self):
         self.sel_x, self.sel_y, self.sel_z = [], [], []

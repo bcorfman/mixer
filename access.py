@@ -34,7 +34,7 @@ class CellBounds(AccessObj):
     """ Access object for the Plotter class. Takes input from the cell pick callback and displays it."""
     def __init__(self, plotter):
         super().__init__(plotter)
-        self.callout = Callout(justification='center', font_size=18, color=(1.0, 1.0, 0.4))
+        self.callout = Callout(justification='center', font_size=18, color=(1, 1, 1))
         self.plotter.scene.add_actor(self.callout.actor)
 
     def display(self, extent, pk):
