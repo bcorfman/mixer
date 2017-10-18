@@ -1,11 +1,10 @@
-import types
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
 from tvtk.api import tvtk
+import vtk
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
-from access import CellBounds, PointBounds
-import util
+from access import CellBounds
 
 
 def on_pick(self, vtk_picker, event):
@@ -57,6 +56,15 @@ class MayaviController:
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
 
+        def world_picker_callback(pick):
+            p1 = list(pick.pick_position)
+            p1[2] = -5
+            p2 = list(pick.pick_position)
+            p2[2] = 5
+            cells = tvtk.IdList()
+            result = plotter.obb.intersect_with_line(p1, p2, None, cells)
+            print(cells.number_of_ids)
+
         # def point_picker_callback(pick):
         #     """ This gets called on pick events. """
         #     print("point callback")
@@ -89,7 +97,9 @@ class MayaviController:
         def cell_picker_callback(pick):
             """ This gets called on pick events. """
             # determine cell boundaries and use them to set outline
+            plotter.rgrid.find_and_get_cell()
             pk, extent = self.get_cell_info(pick.pick_position)
+            print(pick.cell_id)
             if pk is None:
                 return True
             self.cb.display(extent, pk)
@@ -97,11 +107,11 @@ class MayaviController:
 
         figure = plotter.scene.mlab.gcf()
         # monkey patch the MousePickDispatcher.on_pick method with my enhanced version
-        figure._mouse_pick_dispatcher.on_pick = types.MethodType(on_pick, figure._mouse_pick_dispatcher)
+        #figure._mouse_pick_dispatcher.on_pick = types.MethodType(on_pick, figure._mouse_pick_dispatcher)
         # if model.dtl_file is not None:
         #     point_picker = figure.on_mouse_pick(point_picker_callback, type='point')
         #     point_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
-        cell_picker = figure.on_mouse_pick(cell_picker_callback, type='cell')
+        world_picker = figure.on_mouse_pick(world_picker_callback, type='world')
 
     def get_cell_info(self, selection_point):
         model = self.model
