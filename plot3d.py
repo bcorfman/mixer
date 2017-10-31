@@ -27,6 +27,37 @@ __doc__ = '''
     Blast volumes are plotted as spheres or double cylinders with sphere caps.
 '''
 
+class CustomInteractor(vtk.vtkInteractorStyleTrackballActor):
+    def __init__(self, model, plotter):
+        self.model = model
+        self.plotter = plotter
+        self.AddObserver('LeftButtonReleaseEvent', self.on_left_button_release)
+
+    def on_left_button_release(self, obj, eventType):
+        picker = vtk.vtkCellPicker()
+        click_pos = obj.GetInteractor().GetEventPosition()
+        renderer = obj.GetCurrentRenderer()
+        picker.SetTolerance(0.02)
+        picker.Pick(click_pos[0], click_pos[1], 0, renderer)
+        pos = picker.GetPickPosition()
+        cell_id = picker.GetCellId()
+        sub_id = picker.GetSubId()
+        print(pos, cell_id, sub_id)
+        #bounds = picker.GetActor().GetBounds()
+
+        num_cells_rng, num_cells_defl = len(self.model.cell_size_range), len(self.model.cell_size_defl)
+        #cell_defl, cell_rng = cells.cell_id // num_cells_defl, picker.cell_id % num_cells_rng
+        #rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
+        #defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
+        #extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
+        # Find PK for selected cell
+        #pk = picker.mapper.input.cell_data.scalars[picker.cell_id]
+
+        # Pick position for any portion of the grid has a negative Z value if viewed from the top.
+        # This means we can differentiate appropriate grid clicks from inappropriate ones (viewed from the bottom)
+        # and from other actors in the scene by simply filtering on Z value.
+        vtk.vtkInteractorStyleTrackballActor.OnLeftButtonUp(self)
+
 
 ######################################################################
 class Visualization(HasTraits):
@@ -69,9 +100,9 @@ class Plotter(Visualization):
         self.pid = None
         self.rgrid = None
         self.rgrid_array = None
-        self.rng_callout = None
-        self.defl_callout = None
+        self.mtx_callout = None
         self.mun_callout = None
+        self.obb = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -133,15 +164,13 @@ class Plotter(Visualization):
         # Also, scale the text to a readable size.
         sz = max(1, int(abs(model.gridlines_range[-1] - model.gridlines_range[0]) / 100))
         spacing = max(5, sz)
-        rng_text = 'Matrix range: (%5.1f, %5.1f)' % (model.mtx_extent_range[0], model.mtx_extent_range[1])
-        defl_text = 'Matrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_defl[0], model.mtx_extent_defl[1])
-        self.rng_callout = Callout(rng_text, justification='left', font_size=18, color=(1, 1, 1),
-                                   position=(model.gridlines_range[-1], model.gridlines_defl[0],
-                                             4 * spacing + 2.5 * sz))
-        self.scene.add_actor(self.rng_callout.actor)
-        self.defl_callout = Callout(defl_text, justification='left', font_size=18, color=(1, 1, 1),
-                                    position=(model.gridlines_range[-1], model.gridlines_defl[0], 4 * spacing))
-        self.scene.add_actor(self.defl_callout.actor)
+        text = 'Matrix range: (%5.1f, %5.1f)\nMatrix defl: (%5.1f, %5.1f)' % (model.mtx_extent_range[0],
+                                                                              model.mtx_extent_range[1],
+                                                                              model.mtx_extent_defl[0],
+                                                                              model.mtx_extent_defl[1])
+        self.mtx_callout = Callout(text, justification='left', font_size=18, color=(1, 1, 1),
+                                   position=(model.gridlines_range[-1], model.gridlines_defl[0], 4 * spacing))
+        self.scene.add_actor(self.mtx_callout.actor)
 
     def plot_blast_volumes(self):
         model = self.model
@@ -291,3 +320,6 @@ class Plotter(Visualization):
 
     def show_axes(self, state):
         self.axes.visible = state
+
+    def get_camera(self):
+        return self.scene.camera

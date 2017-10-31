@@ -1,29 +1,52 @@
-import types
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
 from tvtk.api import tvtk
+import vtk
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
-from access import CellBounds, PointBounds
-import util
+from access import CellBounds
 
 
-def on_pick(self, vtk_picker, event):
-    """ Dispatch the pick to the callback associated with the
-        corresponding mouse button; if callback has been handled,
-        then skip any further callbacks.
-    """
-    handled = False
-    picker = tvtk.to_tvtk(vtk_picker)
-    for event_type, event_picker in self._active_pickers.items():
-        if picker is event_picker:
-            for callback, type, button in self.callbacks:
-                if type == event_type and button == self._current_button:
-                    handled = callback(picker)
-                    if handled:
-                        break
-        if handled:
-            break
+class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
+    def __init__(self, model, plotter):
+        self.model = model
+        self.plotter = plotter
+        self.AddObserver('LeftButtonReleaseEvent', self.on_left_button_release)
+
+    def on_left_button_release(self, obj, eventType):
+        # get camera's view transform matrix, which gives any rotations and transforms used to display the
+        # camera's (and user's) current viewpoint of the scene.
+        camera = self.plotter.get_camera()
+        mtx = camera.view_transform_matrix
+        # inverting the view transform matrix and multiplying by it will undo any rotations and transforms.
+        mtx.invert()
+
+        # grab the world coordinates of the user's picked point
+        picker = vtk.vtkPropPicker()
+        click_pos = obj.GetInteractor().GetEventPosition()
+        renderer = obj.GetCurrentRenderer()
+        picker.Pick(click_pos[0], click_pos[1], 0, renderer)
+        pos = picker.GetPickPosition()  # TODO: figure out why pos is (0, 0, 0)
+        pt = [pos[0], pos[1], pos[2], 1]  # matrix multiply expects a 4-element vector
+
+        # now multiply the picked position by the inverse view transform matrix to undo any transforms
+        orig_pt = mtx.multiply_point(pt)
+
+        #cell_id = picker.GetCellId()
+        #bounds = picker.GetActor().GetBounds()
+
+        num_cells_rng, num_cells_defl = len(self.model.cell_size_range), len(self.model.cell_size_defl)
+        #cell_defl, cell_rng = cells.cell_id // num_cells_defl, picker.cell_id % num_cells_rng
+        #rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
+        #defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
+        #extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
+        # Find PK for selected cell
+        #pk = picker.mapper.input.cell_data.scalars[picker.cell_id]
+
+        # Pick position for any portion of the grid has a negative Z value if viewed from the top.
+        # This means we can differentiate appropriate grid clicks from inappropriate ones (viewed from the bottom)
+        # and from other actors in the scene by simply filtering on Z value.
+        vtk.vtkInteractorStyleTrackballCamera.OnLeftButtonUp(self)
 
 
 # noinspection PyProtectedMember
@@ -57,74 +80,8 @@ class MayaviController:
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
 
-        # def point_picker_callback(pick):
-        #     """ This gets called on pick events. """
-        #     print("point callback")
-        #     print(pick)
-        #     if plotter.burstpoint_glyphs and pick.actor in plotter.burstpoint_glyphs.actor.actors:
-        #         # Find which data point corresponds to the point picked:
-        #         # we have to account for the fact that each data point is
-        #         # represented by a glyph with several points
-        #         point_id = pick.point_id // plotter.burstpoint_array.shape[0]
-        #
-        #         # If the no points have been selected, we have '-1'
-        #         if point_id != -1:
-        #             # Retrieve the coordinates corresponding to that data
-        #             # point -- point ids start at 1, so add 1 to 0-based indexing.
-        #             pid = plotter.pid = point_id + 1
-        #
-        #             # Move the outline to the data point.
-        #             # Add an outline to show the selected point and center it on the first
-        #             # data point.
-        #             pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
-        #             azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-        #             x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
-        #             extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
-        #             pb = plotter.access_obj = PointBounds(plotter, extent)
-        #             pb.display()
-        #             self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
-        #             return True
-        #     return False
-
-        def cell_picker_callback(pick):
-            """ This gets called on pick events. """
-            # determine cell boundaries and use them to set outline
-            pk, extent = self.get_cell_info(pick.pick_position)
-            if pk is None:
-                return True
-            self.cb.display(extent, pk)
-            return True
-
-        figure = plotter.scene.mlab.gcf()
-        # monkey patch the MousePickDispatcher.on_pick method with my enhanced version
-        figure._mouse_pick_dispatcher.on_pick = types.MethodType(on_pick, figure._mouse_pick_dispatcher)
-        # if model.dtl_file is not None:
-        #     point_picker = figure.on_mouse_pick(point_picker_callback, type='point')
-        #     point_picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
-        cell_picker = figure.on_mouse_pick(cell_picker_callback, type='cell')
-
-    def get_cell_info(self, selection_point):
-        model = self.model
-        defl = selection_point[1]
-        rng = selection_point[0]
-        defl_index = None
-        for i in range(len(model.gridlines_defl) - 1):
-            if model.gridlines_defl[i] >= defl >= model.gridlines_defl[i+1]:
-                defl_index = i
-                break
-        rng_index = None
-        for i in reversed(range(len(model.gridlines_range) - 1)):
-            if model.gridlines_range[i] >= rng >= model.gridlines_range[i+1]:
-                rng_index = i
-                break
-        if defl_index is None or rng_index is None:
-            return None, None
-        else:
-            pk = model.pks[rng_index, defl_index]
-            extent = (model.gridlines_defl[defl_index+1], model.gridlines_defl[defl_index],
-                      model.gridlines_range[rng_index+1], model.gridlines_range[rng_index],
-                      0.1, 0.1)
-            return pk, extent
+        fig = self.plotter.scene.mlab.gcf()
+        fig.scene.interactor.interactor_style = CustomInteractor(model, plotter)
 
     def set_window_events(self, view):
         view.closeEvent = self.closeEvent
