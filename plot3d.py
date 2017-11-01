@@ -27,37 +27,6 @@ __doc__ = '''
     Blast volumes are plotted as spheres or double cylinders with sphere caps.
 '''
 
-class CustomInteractor(vtk.vtkInteractorStyleTrackballActor):
-    def __init__(self, model, plotter):
-        self.model = model
-        self.plotter = plotter
-        self.AddObserver('LeftButtonReleaseEvent', self.on_left_button_release)
-
-    def on_left_button_release(self, obj, eventType):
-        picker = vtk.vtkCellPicker()
-        click_pos = obj.GetInteractor().GetEventPosition()
-        renderer = obj.GetCurrentRenderer()
-        picker.SetTolerance(0.02)
-        picker.Pick(click_pos[0], click_pos[1], 0, renderer)
-        pos = picker.GetPickPosition()
-        cell_id = picker.GetCellId()
-        sub_id = picker.GetSubId()
-        print(pos, cell_id, sub_id)
-        #bounds = picker.GetActor().GetBounds()
-
-        num_cells_rng, num_cells_defl = len(self.model.cell_size_range), len(self.model.cell_size_defl)
-        #cell_defl, cell_rng = cells.cell_id // num_cells_defl, picker.cell_id % num_cells_rng
-        #rng_min, rng_max = self.model.gridlines_range[cell_rng + 1], self.model.gridlines_range[cell_rng]
-        #defl_min, defl_max = self.model.gridlines_defl[cell_defl + 1], self.model.gridlines_defl[cell_defl]
-        #extent = (defl_min, defl_max, rng_min, rng_max, 0.1, 0.1)
-        # Find PK for selected cell
-        #pk = picker.mapper.input.cell_data.scalars[picker.cell_id]
-
-        # Pick position for any portion of the grid has a negative Z value if viewed from the top.
-        # This means we can differentiate appropriate grid clicks from inappropriate ones (viewed from the bottom)
-        # and from other actors in the scene by simply filtering on Z value.
-        vtk.vtkInteractorStyleTrackballActor.OnLeftButtonUp(self)
-
 
 ######################################################################
 class Visualization(HasTraits):
@@ -102,7 +71,6 @@ class Plotter(Visualization):
         self.rgrid_array = None
         self.mtx_callout = None
         self.mun_callout = None
-        self.obb = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -306,7 +274,7 @@ class Plotter(Visualization):
         self.plot_munition()
         if model.sample_loc:
             self.plot_detail()
-        self.axes = self.scene.mlab.orientation_axes(figure=self.scene.mlab.gcf())
+        self.axes = self.scene.mlab.orientation_axes(figure=self.scene.mayavi_scene)
         self.axes.visible = False
         self.scene.disable_render = False  # reinstate display
         super(Plotter, self).update_plot()

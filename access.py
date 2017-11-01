@@ -36,13 +36,13 @@ class CellBounds(AccessObj):
         super().__init__(plotter)
         self.callout = Callout(justification='center', font_size=18, color=(1, 1, 1))
         self.plotter.scene.add_actor(self.callout.actor)
+        self.plotter.outline = self.plotter.scene.mlab.outline(line_width=3)
 
     def display(self, extent, pk):
         if self.plotter.outline is not None:
             self.plotter.outline.visible = False
         self.callout.visible = False
         x_min, x_max, y_min, y_max, z_min, z_max = extent
-        self.plotter.outline = self.plotter.scene.mlab.outline(line_width=3)
         self.plotter.outline.manual_bounds = True
         self.plotter.outline.bounds = (y_min, y_max, x_min, x_max, z_min, z_max)
         self.plotter.outline.visible = True

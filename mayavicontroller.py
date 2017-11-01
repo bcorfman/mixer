@@ -11,20 +11,51 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
     def __init__(self, model, plotter):
         self.model = model
         self.plotter = plotter
-        self.AddObserver('LeftButtonReleaseEvent', self.on_left_button_release)
+        self.middle_btn_event_id = self.AddObserver('MiddleButtonReleaseEvent', self.on_middle_button_release)
+        self.cb = CellBounds(plotter)
 
-    def on_left_button_release(self, obj, eventType):
+    def on_middle_button_release(self, obj, eventType):
         picker = vtk.vtkPropPicker()
         click_pos = obj.GetInteractor().GetEventPosition()
         renderer = obj.GetCurrentRenderer()
+        cmd = obj.GetCommand(self.middle_btn_event_id)
+        # if not aborted, the mouse will continue its "pan" functionality as if middle button was held down.
+        cmd.SetAbortFlag(1)
         picker.Pick(click_pos[0], click_pos[1], 0, renderer)
+        pos = picker.GetPickPosition()
+        z = pos[2]
         # Pick position for any portion of the grid has a negative Z value if viewed from the top.
         # This means we can differentiate appropriate grid clicks from inappropriate ones (viewed from the bottom)
         # and from other actors in the scene by simply filtering on Z value.
-        pos = picker.GetPickPosition()
-        pt = [pos[0], pos[1], pos[2], 1]  # matrix multiply expects a 4-element vector
-        self.plotter.scene.mlab.points3d([pt[0]], [pt[1]], [pt[2]], [1], color=(1, 1, 1), scale_factor=5)
-        vtk.vtkInteractorStyleTrackballCamera.OnLeftButtonUp(self)
+        if z < 0:
+            pk, extent = self.get_cell_info(pos)
+            if pk is not None:
+                self.cb.display(extent, pk)
+        vtk.vtkInteractorStyleTrackballCamera.OnMiddleButtonUp(self)
+
+    def get_cell_info(self, selection_point):
+        defl = selection_point[1]
+        rng = selection_point[0]
+        defl_index = None
+        gridlines_defl = self.model.gridlines_defl
+        gridlines_range = self.model.gridlines_range
+        for i in range(len(gridlines_defl) - 1):
+            if gridlines_defl[i] >= defl >= gridlines_defl[i+1]:
+                defl_index = i
+                break
+        rng_index = None
+        for i in range(len(gridlines_range) - 1):
+            if gridlines_range[i] >= rng >= gridlines_range[i+1]:
+                rng_index = i
+                break
+        if defl_index is None or rng_index is None:
+            return None, None
+        else:
+            pk = self.model.pks[rng_index, defl_index]
+            extent = (self.model.gridlines_defl[defl_index+1], self.model.gridlines_defl[defl_index],
+                      self.model.gridlines_range[rng_index+1], self.model.gridlines_range[rng_index],
+                      0.1, 0.1)
+            return pk, extent
 
 
 # noinspection PyProtectedMember
@@ -35,7 +66,6 @@ class MayaviController:
         self.working_dir = working_dir
         self.plotter = plotter = Plotter(model)
         self.dispatcher = None
-        self.cb = CellBounds(plotter)
 
         # set up window controls and events
         view.rdoSample.setChecked(True)
@@ -58,7 +88,7 @@ class MayaviController:
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
 
-        fig = self.plotter.scene.mlab.gcf()
+        fig = self.plotter.scene.mayavi_scene
         fig.scene.interactor.interactor_style = CustomInteractor(model, plotter)
 
     def set_window_events(self, view):
