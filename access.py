@@ -12,6 +12,9 @@ class PointBounds(AccessObj):
     def __init__(self, plotter):
         super().__init__(plotter)
 
+    def hide(self):
+        self.plotter.outline.visible = False
+
     def display(self, extent):
         if self.plotter.outline is not None:
             self.plotter.outline.visible = False
@@ -37,6 +40,10 @@ class CellBounds(AccessObj):
         self.callout = Callout(justification='center', font_size=18, color=(1, 1, 1))
         self.plotter.scene.add_actor(self.callout.actor)
         self.plotter.outline = self.plotter.scene.mlab.outline(line_width=3)
+
+    def hide(self):
+        self.plotter.outline.visible = False
+        self.callout.visible = False
 
     def display(self, extent, pk):
         if self.plotter.outline is not None:

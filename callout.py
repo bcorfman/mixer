@@ -34,3 +34,11 @@ class Callout:
     @property
     def actor(self):
         return self.__text_actor
+
+    @property
+    def visible(self):
+        return self.__text_actor.visibility
+
+    @visible.setter
+    def visible(self, val):
+        self.__text_actor.visibility = val

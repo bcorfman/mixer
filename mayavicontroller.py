@@ -13,6 +13,7 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
         self.plotter = plotter
         self.middle_btn_event_id = self.AddObserver('MiddleButtonReleaseEvent', self.on_middle_button_release)
         self.cb = CellBounds(plotter)
+        self.extent = None
 
     def on_middle_button_release(self, obj, eventType):
         picker = vtk.vtkPropPicker()
@@ -29,8 +30,12 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
         # and from other actors in the scene by simply filtering on Z value.
         if z < 0:
             pk, extent = self.get_cell_info(pos)
-            if pk is not None:
+            if extent == self.extent or pk is None:
+                self.cb.hide()
+                self.extent = None
+            else:
                 self.cb.display(extent, pk)
+                self.extent = extent
         vtk.vtkInteractorStyleTrackballCamera.OnMiddleButtonUp(self)
 
     def get_cell_info(self, selection_point):
