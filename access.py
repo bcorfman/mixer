@@ -11,6 +11,9 @@ class PointBounds(AccessObj):
     """ Access object for the Plotter class. Takes input from the point pick callback and displays it."""
     def __init__(self, plotter):
         super().__init__(plotter)
+        self.x_mid = None
+        self.y_mid = None
+        self.z_mid = None
 
     def hide(self):
         self.plotter.outline.visible = False
@@ -19,13 +22,15 @@ class PointBounds(AccessObj):
         if self.plotter.outline is not None:
             self.plotter.outline.visible = False
         x_min, x_max, y_min, y_max, z_min, z_max = extent
-        x_mid = (x_max - x_min) / 2.0 + x_min
-        y_mid = (y_max - y_min) / 2.0 + y_min
-        z_mid = (z_max - z_min) / 2.0 + z_min
+        self.x_mid = (x_max - x_min) / 2.0 + x_min
+        self.y_mid = (y_max - y_min) / 2.0 + y_min
+        self.z_mid = (z_max - z_min) / 2.0 + z_min
         if self.plotter.outline is None:
             self.plotter.outline = self.plotter.scene.mlab.outline(line_width=3)
         self.plotter.outline.manual_bounds = True
-        self.plotter.outline.bounds = (x_mid - 0.5, x_mid + 0.5, y_mid - 0.5, y_mid + 0.5, z_mid - 0.5, z_mid + 0.5)
+        self.plotter.outline.bounds = (self.x_mid - 0.5, self.x_mid + 0.5,
+                                       self.y_mid - 0.5, self.y_mid + 0.5,
+                                       self.z_mid - 0.5, self.z_mid + 0.5)
         self.plotter.outline.visible = True
 
     # noinspection PyMethodMayBeStatic

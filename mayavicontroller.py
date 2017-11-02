@@ -1,25 +1,66 @@
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
-from tvtk.api import tvtk
 import vtk
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
-from access import CellBounds
+from access import CellBounds, PointBounds
 
 
 class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
-    def __init__(self, model, plotter):
+    def __init__(self, model, view, plotter):
         self.model = model
+        self.view = view
         self.plotter = plotter
-        self.middle_btn_event_id = self.AddObserver('MiddleButtonReleaseEvent', self.on_middle_button_release)
+        if model.dtl_file is not None:
+            self.left_btn_event_id = self.AddObserver('LeftButtonReleaseEvent', self.on_left_button_release)
+        self.right_btn_event_id = self.AddObserver('RightButtonReleaseEvent', self.on_right_button_release)
         self.cb = CellBounds(plotter)
         self.extent = None
 
-    def on_middle_button_release(self, obj, eventType):
+    def on_left_button_release(self, obj, eventType):
+        model = self.model
+        view = self.view
+        picker = vtk.vtkPointPicker()
+        click_pos = obj.GetInteractor().GetEventPosition()
+        renderer = obj.GetCurrentRenderer()
+        picker.Pick(click_pos[0], click_pos[1], 0, renderer)
+        actor = picker.GetActor()
+        point_id = picker.GetPointId()
+
+        if actor in self.plotter.point_glyphs.actor.actors:
+            # Find which data point corresponds to the point picked:
+            # we have to account for the fact that each data point is
+            # represented by a glyph with several points
+            point_id = point_id // self.plotter.point_array.shape[0]
+
+            # If the no points have been selected, we have '-1'
+            if point_id != -1:
+                # Retrieve the coordinates corresponding to that data
+                # point -- point ids start at 1, so add 1 to 0-based indexing.
+                pid = self.plotter.pid = point_id + 1
+
+                # Move the outline to the data point.
+                # Add an outline to show the selected point and center it on the first
+                # data point.
+                pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
+                azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
+                x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
+                extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
+                pb = self.plotter.access_obj = PointBounds(self.plotter)
+                pb.display(extent)
+                self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
+
+        # if not aborted, the mouse will continue its rotation functionality as if left button was held down.
+        cmd = obj.GetCommand(self.left_btn_event_id)
+        cmd.SetAbortFlag(1)
+
+        vtk.vtkInteractorStyleTrackballCamera.OnLeftButtonUp(self)
+
+    def on_right_button_release(self, obj, eventType):
         picker = vtk.vtkPropPicker()
         click_pos = obj.GetInteractor().GetEventPosition()
         renderer = obj.GetCurrentRenderer()
-        cmd = obj.GetCommand(self.middle_btn_event_id)
+        cmd = obj.GetCommand(self.right_btn_event_id)
         # if not aborted, the mouse will continue its "pan" functionality as if middle button was held down.
         cmd.SetAbortFlag(1)
         picker.Pick(click_pos[0], click_pos[1], 0, renderer)
@@ -36,7 +77,7 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
             else:
                 self.cb.display(extent, pk)
                 self.extent = extent
-        vtk.vtkInteractorStyleTrackballCamera.OnMiddleButtonUp(self)
+        vtk.vtkInteractorStyleTrackballCamera.OnRightButtonUp(self)
 
     def get_cell_info(self, selection_point):
         defl = selection_point[1]
@@ -61,64 +102,6 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
                       self.model.gridlines_range[rng_index+1], self.model.gridlines_range[rng_index],
                       0.1, 0.1)
             return pk, extent
-
-
-# noinspection PyProtectedMember
-class MayaviController:
-    def __init__(self, model, view, working_dir):
-        self.model = model
-        self.view = view
-        self.working_dir = working_dir
-        self.plotter = plotter = Plotter(model)
-        self.dispatcher = None
-
-        # set up window controls and events
-        view.rdoSample.setChecked(True)
-        self.set_window_events(view)
-
-        if model.az_averaging and model.dtl_file is not None:
-            self.setup_detailed_output_frames(model, view)
-        else:
-            view.frmAzimuth.setVisible(False)
-            view.frmDetail.setVisible(False)
-
-        # when this code is called, the sample points or burstpoints in the plotter are initialized only.
-        # They cannot be drawn until the Mayavi widget is created, and the scene is activated (which fires
-        # plotter.update_plot).
-        if model.dtl_file is not None:
-            points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
-            az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-            self.plotter.update_point_detail(az, points)
-        self.mayavi_widget = MayaviQWidget(plotter, view.frmMayavi)
-        layout = QtGui.QGridLayout(view.frmMayavi)
-        layout.addWidget(self.mayavi_widget, 1, 1)
-
-        fig = self.plotter.scene.mayavi_scene
-        fig.scene.interactor.interactor_style = CustomInteractor(model, plotter)
-
-    def set_window_events(self, view):
-        view.closeEvent = self.closeEvent
-        view.rdoSample.clicked.connect(self.on_rdo_sample)
-        view.rdoBurst.clicked.connect(self.on_rdo_burst)
-        view.btnSave.clicked.connect(self.on_btn_save_clicked)
-        view.btnHome.clicked.connect(self.on_btn_home_clicked)
-        view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
-        view.btnClearSel.clicked.connect(self.on_btn_clear_clicked)
-
-    def setup_detailed_output_frames(self, model, view):
-        layout = view.frmAzimuth.layout()
-        point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
-        label_text = 'View {0} points at attack azimuth:'.format(point_type)
-        view.lblAzimuth = QtGui.QLabel(label_text, view.frmAzimuth)
-        layout.addWidget(view.lblAzimuth)
-        view.buttonGroup = QtGui.QButtonGroup(view.frmAzimuth)
-        view.buttonGroup.buttonClicked.connect(self.on_rdo_azimuth_clicked)
-        for az in range(0, 360, int(model.attack_az)):
-            rdo_button = QtGui.QRadioButton('{0} degrees'.format(az), view.frmAzimuth)
-            layout.addWidget(rdo_button)
-            view.buttonGroup.addButton(rdo_button, az)
-            if az == 0:
-                rdo_button.setChecked(True)
 
     # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
     def print_point_details(self, pid, x, y, z):
@@ -152,6 +135,66 @@ class MayaviController:
                 output += '\n'
 
         self.view.txtInfo.setPlainText(output)
+
+
+# noinspection PyProtectedMember
+class MayaviController:
+    def __init__(self, model, view, working_dir):
+        self.model = model
+        self.view = view
+        self.working_dir = working_dir
+        self.plotter = plotter = Plotter(model)
+        self.dispatcher = None
+        vtk.vtkObject.GlobalWarningDisplayOff()
+
+        # set up window controls and events
+        view.rdoSample.setChecked(True)
+        self.set_window_events(view)
+
+        if model.az_averaging and model.dtl_file is not None:
+            self.setup_detailed_output_frames(model, view)
+        else:
+            view.frmAzimuth.setVisible(False)
+            view.frmDetail.setVisible(False)
+
+        # when this code is called, the sample points or burstpoints in the plotter are initialized only.
+        # They cannot be drawn until the Mayavi widget is created, and the scene is activated (which fires
+        # plotter.update_plot).
+        #if model.dtl_file is not None:
+        #    points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
+        #    az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
+        #    self.plotter.update_point_detail(az, points)
+        self.mayavi_widget = MayaviQWidget(plotter, view.frmMayavi)
+        layout = QtGui.QGridLayout(view.frmMayavi)
+        layout.addWidget(self.mayavi_widget, 1, 1)
+
+        self.interactor = CustomInteractor(model, view, plotter)
+        fig = self.plotter.scene.mayavi_scene
+        fig.scene.interactor.interactor_style = self.interactor
+
+    def set_window_events(self, view):
+        view.closeEvent = self.closeEvent
+        view.rdoSample.clicked.connect(self.on_rdo_sample)
+        view.rdoBurst.clicked.connect(self.on_rdo_burst)
+        view.btnSave.clicked.connect(self.on_btn_save_clicked)
+        view.btnHome.clicked.connect(self.on_btn_home_clicked)
+        view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
+        view.btnClearSel.clicked.connect(self.on_btn_clear_clicked)
+
+    def setup_detailed_output_frames(self, model, view):
+        layout = view.frmAzimuth.layout()
+        point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
+        label_text = 'View {0} points at attack azimuth:'.format(point_type)
+        view.lblAzimuth = QtGui.QLabel(label_text, view.frmAzimuth)
+        layout.addWidget(view.lblAzimuth)
+        view.buttonGroup = QtGui.QButtonGroup(view.frmAzimuth)
+        view.buttonGroup.buttonClicked.connect(self.on_rdo_azimuth_clicked)
+        for az in range(0, 360, int(model.attack_az)):
+            rdo_button = QtGui.QRadioButton('{0} degrees'.format(az), view.frmAzimuth)
+            layout.addWidget(rdo_button)
+            view.buttonGroup.addButton(rdo_button, az)
+            if az == 0:
+                rdo_button.setChecked(True)
 
     def on_btn_home_clicked(self):
         self.plotter.reset_view()
