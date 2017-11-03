@@ -106,7 +106,7 @@ class DataModel(object):
         self.surfaces = np.array(self.surfaces)
         self.volume_radius = max(self.srf_min_x, self.srf_max_x, self.srf_min_y, self.srf_max_y)
         for r1, r2, r3, z1, z2 in self.blast_vol.values():
-            self.volume_radius = max(self.volume_radius, z1 + z2 + max(r3, r2, r1))
+            self.volume_radius = max(self.volume_radius, z1 + z2 + max(r3, r2, r1) + 10.0)
 
     def transform_matrix(self):
         # Store the matrix extents in range & deflection for later display in the 3D scene.

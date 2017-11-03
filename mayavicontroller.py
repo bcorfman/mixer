@@ -16,46 +16,6 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
         self.cb = CellBounds(plotter)
         self.extent = None
 
-    def on_left_button_release(self, obj, eventType):
-        model = self.model
-        view = self.view
-        picker = vtk.vtkPointPicker()
-        picker.SetTolerance(0.1)
-        click_pos = obj.GetInteractor().GetEventPosition()
-        renderer = obj.GetCurrentRenderer()
-        picker.Pick(click_pos[0], click_pos[1], 0, renderer)
-        actor = tvtk.Actor(picker.GetActor())
-        point_id = picker.GetPointId()
-
-        if actor in self.plotter.burstpoint_glyphs.actor.actors:
-            # Find which data point corresponds to the point picked:
-            # we have to account for the fact that each data point is
-            # represented by a glyph with several points
-            point_id = point_id // self.plotter.burstpoint_array.shape[0]
-
-            # If the no points have been selected, we have '-1'
-            if point_id != -1:
-                # Retrieve the coordinates corresponding to that data
-                # point -- point ids start at 1, so add 1 to 0-based indexing.
-                pid = self.plotter.pid = point_id + 1
-
-                # Move the outline to the data point.
-                # Add an outline to show the selected point and center it on the first
-                # data point.
-                pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
-                azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-                x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
-                extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
-                pb = self.plotter.access_obj = PointBounds(self.plotter)
-                pb.display(extent)
-                self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
-
-        # if not aborted, the mouse will continue its rotation functionality as if left button was held down.
-        cmd = obj.GetCommand(self.left_btn_event_id)
-        cmd.SetAbortFlag(1)
-
-        vtk.vtkInteractorStyleTrackballCamera.OnLeftButtonUp(self)
-
     def on_right_button_release(self, obj, eventType):
         picker = vtk.vtkPropPicker()
         click_pos = obj.GetInteractor().GetEventPosition()
@@ -103,39 +63,6 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
                       0.1, 0.1)
             return pk, extent
 
-    # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
-    def print_point_details(self, pid, x, y, z):
-        model = self.model
-        if self.view.rdoSample.isChecked():
-            output = 'Sample point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
-        else:
-            output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
-
-        az = self.plotter.selected_az
-        comp_ids = sorted(model.dh_ids.union(model.blast_ids).union(model.frag_ids))
-        for cid in comp_ids:
-            if cid in model.dh_ids:
-                output += '   DH PK for {0}: {1:.2f}\n'.format(model.comps[cid].name, model.comp_pk[pid][az][cid])
-                surf_name = model.surf_names[model.surface_hit[pid][az]]
-                output += '      Surf hit: {0}\n'.format(surf_name)
-            elif cid in model.blast_ids:
-                output += '   Blast PK for {0}: {1:.2f}\n'.format(model.comps[cid].name,
-                                                                  model.comp_pk[pid][az][cid])
-            elif cid in model.frag_ids:
-                output += '   Frag PK for {0}: {1:.2f}\n'.format(model.comps[cid].name,
-                                                                 model.comp_pk[pid][az][cid])
-                output += '      Zone '
-                zones = model.frag_zones[pid][az][cid]
-                if zones:
-                    output += '{0}'.format(zones[0][0])
-                    for z in range(1, len(zones) - 1):
-                        output += ', {0}'.format(zones[z][0])
-                else:
-                    output += 'None'
-                output += '\n'
-
-        self.view.txtInfo.setPlainText(output)
-
 
 # noinspection PyProtectedMember
 class MayaviController:
@@ -153,6 +80,8 @@ class MayaviController:
 
         if model.az_averaging and model.dtl_file is not None:
             self.setup_detailed_output_frames(model, view)
+        elif model.dtl_file is not None:
+            view.frmAzimuth.setVisible(False)
         else:
             view.frmAzimuth.setVisible(False)
             view.frmDetail.setVisible(False)
@@ -189,16 +118,21 @@ class MayaviController:
                     # Move the outline to the data point.
                     # Add an outline to show the selected point and center it on the first
                     # data point.
-                    pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
-                    azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
-                    x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
-                    extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
-                    pb = self.plotter.access_obj = PointBounds(self.plotter)
-                    pb.display(extent)
-                    self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
+                    self.update_point_details(pid)
 
         picker = fig.on_mouse_pick(picker_callback)
         picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+
+    def update_point_details(self, pid):
+        model = self.model
+        view = self.view
+        pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
+        azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
+        x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
+        extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
+        pb = self.plotter.access_obj = PointBounds(self.plotter)
+        pb.display(extent)
+        self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
 
     # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
     def print_point_details(self, pid, x, y, z):
@@ -275,24 +209,33 @@ class MayaviController:
 
     # noinspection PyUnusedLocal
     def on_rdo_azimuth_clicked(self, button):
+        pid = self.plotter.pid
         self.view.txtInfo.setPlainText("")
         self.update_radius_params()
-        outline = self.plotter.outline
-        self.print_point_details(self.plotter.pid, outline.x_mid, outline.y_mid, outline.z_mid)
+        obj = self.plotter.access_obj
+        obj.hide()
+        if obj.is_cell_outline():
+            self.update_point_details(pid)
 
     def on_rdo_sample(self):
+        pid = self.plotter.pid
         self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
         self.update_radius_params()
-        outline = self.plotter.outline
-        self.print_point_details(self.plotter.pid, outline.x_mid, outline.y_mid, outline.z_mid)
+        obj = self.plotter.access_obj
+        obj.hide()
+        #if not obj.is_cell_outline():
+        #    self.update_point_details(pid)
 
     def on_rdo_burst(self):
+        pid = self.plotter.pid
         self.view.txtInfo.setPlainText("")
         self._set_lbl_azimuth_text()
         self.update_radius_params()
-        outline = self.plotter.outline
-        self.print_point_details(self.plotter.pid, outline.x_mid, outline.y_mid, outline.z_mid)
+        obj = self.plotter.access_obj
+        obj.hide()
+        #if not obj.is_cell_outline():
+        #    self.update_point_details(pid)
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():
