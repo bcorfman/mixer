@@ -45,6 +45,7 @@ class CellBounds(AccessObj):
         self.callout = Callout(justification='center', font_size=18, color=(1, 1, 1))
         self.plotter.scene.add_actor(self.callout.actor)
         self.plotter.outline = self.plotter.scene.mlab.outline(line_width=3)
+        self.hide()
 
     def hide(self):
         self.plotter.outline.visible = False

@@ -162,21 +162,19 @@ class Plotter(Visualization):
                 surf.actor.actor.user_transform = t  # rotate the volume into place
             else:
                 # double cylinder merged with sphere cap
-                cap = tvtk.SphereSource(center=(comp.x, z2 + 0.01, comp.y), radius=r3, start_theta=0,
-                                        end_theta=180, phi_resolution=50, theta_resolution=50)
-                upper_cyl = tvtk.CylinderSource(center=(comp.x, (r3 + z2 - z1) / 2.0 + z1 + 0.01, comp.y), radius=r2,
-                                                height=r3 + z2 - z1, resolution=50, capping=False)
+                cap = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, start_theta=0,
+                                        end_theta=180, phi_resolution=100, theta_resolution=50)
+                upper_cyl = tvtk.CylinderSource(center=(comp.x, z2, comp.y + 0.01), radius=r2,
+                                                height=r3 + z2 - z1, resolution=100, capping=True)
                 tri1 = tvtk.TriangleFilter(input_connection=cap.output_port)
                 tri2 = tvtk.TriangleFilter(input_connection=upper_cyl.output_port)
                 # calculate intersection of upper cylinder and sphere cap without displaying
                 # vtkDelaunay2D warnings about "edge not recovered, polygon fill suspect" on the console.
-                vtk.vtkObject.GlobalWarningDisplayOff()
                 boolean_op = tvtk.BooleanOperationPolyDataFilter()
                 boolean_op.operation = 'intersection'
                 boolean_op.add_input_connection(0, tri2.output_port)
                 boolean_op.add_input_connection(1, tri1.output_port)
                 boolean_op.update()
-                vtk.vtkObject.GlobalWarningDisplayOn()
                 source_obj = tvtk.AppendPolyData(input_connection=boolean_op.output_port)
                 lower_cyl = tvtk.CylinderSource(center=(comp.x, z1 / 2.0 + 0.01, comp.y), radius=r1,
                                                 height=z1, resolution=50, capping=True)
@@ -291,3 +289,7 @@ class Plotter(Visualization):
 
     def get_camera(self):
         return self.scene.camera
+
+    def update_point_detail(self, az, points):
+        self.selected_az = az
+        self.radius_points = points
