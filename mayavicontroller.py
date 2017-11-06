@@ -1,22 +1,25 @@
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
-from tvtk.api import tvtk
+from math import sqrt
 import vtk
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
 from access import CellBounds, PointBounds
 
 
+# Right-click functionality for PK callouts on the matrix grid.
+# I use the custom interactor here because Mayavi has no built-in prop picker.
 class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
     def __init__(self, model, view, plotter):
         self.model = model
         self.view = view
         self.plotter = plotter
         self.right_btn_event_id = self.AddObserver('RightButtonReleaseEvent', self.on_right_button_release)
-        self.cb = CellBounds(plotter)
+        self.cb = self.plotter.access_obj = CellBounds(plotter)
         self.extent = None
 
     def on_right_button_release(self, obj, eventType):
+        # A fast hardware property picker that returns world coordinates.
         picker = vtk.vtkPropPicker()
         click_pos = obj.GetInteractor().GetEventPosition()
         renderer = obj.GetCurrentRenderer()
@@ -31,14 +34,21 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
         # and from other actors in the scene by simply filtering on Z value.
         if z < 0:
             pk, extent = self.get_cell_info(pos)
+            # if user clicks the same cell twice, hide the PK callout.
             if extent == self.extent or pk is None:
                 self.cb.hide()
                 self.extent = None
             else:
+                # hide existing selection
+                self.plotter.access_obj.hide()
+                # highlight the selected cell, and display the PK callout above it.
                 self.cb.display(extent, pk)
                 self.extent = extent
+
         vtk.vtkInteractorStyleTrackballCamera.OnRightButtonUp(self)
 
+    # If the picked point falls inside matrix gridlines, this function will return the corresponding
+    # (PK, extent coordinates) of the grid cell. Outside of the grid cell, it will return (None, None).
     def get_cell_info(self, selection_point):
         defl = selection_point[1]
         rng = selection_point[0]
@@ -115,6 +125,9 @@ class MayaviController:
                     # point -- point ids start at 1, so add 1 to 0-based indexing.
                     pid = plotter.pid = point_id + 1
 
+                    # hide existing selection
+                    self.plotter.access_obj.hide()
+
                     # Move the outline to the data point.
                     # Add an outline to show the selected point and center it on the first
                     # data point.
@@ -130,9 +143,19 @@ class MayaviController:
         azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
         extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
+        radius = self.dist_to_active_comps(x, y, z)
         pb = self.plotter.access_obj = PointBounds(self.plotter)
-        pb.display(extent)
+        pb.display(extent, pid, radius, model.attack_az, model.aof)
         self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
+
+    def dist_to_active_comps(self, x, y, z):
+        model = self.model
+        all_ids = model.frag_ids.union(model.blast_ids.union(model.dh_ids))
+        dist = 0.0
+        for i in all_ids:
+            cmp_x, cmp_y, cmp_z = model.comps[i].x, model.comps[i].y, model.comps[i].z
+            dist = max(sqrt((x - cmp_x) ** 2 + (y - cmp_y) ** 2 + (z - cmp_z) ** 2), dist)
+        return dist
 
     # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
     def print_point_details(self, pid, x, y, z):
@@ -204,7 +227,7 @@ class MayaviController:
         self.plotter.show_axes(self.view.btnAxes.isChecked())
 
     def on_btn_clear_clicked(self):
-        self.plotter.turn_off_outline()
+        self.plotter.access_obj.hide()
         self.view.txtInfo.setPlainText("")
 
     # noinspection PyUnusedLocal
@@ -224,8 +247,8 @@ class MayaviController:
         self.update_radius_params()
         obj = self.plotter.access_obj
         obj.hide()
-        #if not obj.is_cell_outline():
-        #    self.update_point_details(pid)
+        if not obj.is_cell_outline():
+            self.update_point_details(pid)
 
     def on_rdo_burst(self):
         pid = self.plotter.pid
@@ -234,8 +257,8 @@ class MayaviController:
         self.update_radius_params()
         obj = self.plotter.access_obj
         obj.hide()
-        #if not obj.is_cell_outline():
-        #    self.update_point_details(pid)
+        if not obj.is_cell_outline():
+            self.update_point_details(pid)
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():

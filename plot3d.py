@@ -71,6 +71,7 @@ class Plotter(Visualization):
         self.rgrid_array = None
         self.mtx_callout = None
         self.mun_callout = None
+        self.access_obj = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
