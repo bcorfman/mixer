@@ -212,13 +212,13 @@ class Plotter(Visualization):
             yloc *= model.volume_radius
 
             # rotate arrow into correct position
-            mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False, line_width=15,
-                          scale_factor=15, name='munition', mode='arrow')
+            mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
+                          scale_factor=15, name='munition')
             # label arrow with text describing terminal conditions
             format_str = '{0} deg AOF\n{1}° deg attack azimuth\n{2} ft/s terminal velocity\n{3} ft. burst height'
             label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
             self.mun_callout = Callout(label, justification='left', font_size=14, color=(1, 1, 1),
-                                       position=(xloc, yloc, zloc + 8))
+                                       position=(xloc, yloc, zloc + 3))
             self.scene.add_actor(self.mun_callout.actor)
         else:
             for az in range(0, 360, int(model.attack_az)):
@@ -229,13 +229,13 @@ class Plotter(Visualization):
                 xloc *= model.volume_radius
                 yloc *= model.volume_radius
                 self.scene.mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
-                                         line_width=15, scale_factor=15, name='munition %d deg' % az, mode='arrow')
+                                         scale_factor=15, name='munition %d deg' % az)
                 if az == 0:
                     format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity\n'
                     format_str += '{3} fr. burst height'
                     label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
                     self.mun_callout = Callout(label, justification='left', font_size=14, color=(1, 1, 1),
-                                               position=(xloc, yloc, zloc + 8))
+                                               position=(xloc, yloc, zloc + 3))
                     self.scene.add_actor(self.mun_callout.actor)
 
     def plot_detail(self):
