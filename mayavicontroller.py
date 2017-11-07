@@ -145,14 +145,14 @@ class MayaviController:
         extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
         radius = self.dist_to_active_comps(x, y, z)
         pb = self.plotter.access_obj = PointBounds(self.plotter)
-        pb.display(extent, pid, radius, model.attack_az, model.aof)
+        pb.display(pid, extent, radius, model.attack_az, model.aof, model.burst_height, model.frag_ids,
+                   model.frag_zones)
         self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
 
     def dist_to_active_comps(self, x, y, z):
         model = self.model
-        all_ids = model.frag_ids.union(model.blast_ids.union(model.dh_ids))
         dist = 0.0
-        for i in all_ids:
+        for i in model.frag_ids:
             cmp_x, cmp_y, cmp_z = model.comps[i].x, model.comps[i].y, model.comps[i].z
             dist = max(sqrt((x - cmp_x) ** 2 + (y - cmp_y) ** 2 + (z - cmp_z) ** 2), dist)
         return dist

@@ -1,7 +1,6 @@
 from mayavi import mlab
 from tvtk.api import tvtk
 from callout import Callout
-import util
 from const import LIGHT_YELLOW3
 
 
@@ -22,7 +21,7 @@ class PointBounds(AccessObj):
     def hide(self):
         self.plotter.outline.visible = False
 
-    def display(self, pid, extent, sphere_radius, munition_az, munition_aof):
+    def display(self, pid, extent, sphere_radius, mun_az, mun_aof, mun_height, comp_ids, frag_zones):
         if self.plotter.access_obj is not None:
             self.plotter.access_obj.hide()
         x_min, x_max, y_min, y_max, z_min, z_max = extent
@@ -36,29 +35,33 @@ class PointBounds(AccessObj):
                                        self.y_mid - 0.5, self.y_mid + 0.5,
                                        self.z_mid - 0.5, self.z_mid + 0.5)
         self.plotter.outline.visible = True
-        # TODO: iterate and do an AppendPolyData to display all zones
-        t = tvtk.Transform()
-        t.rotate_x(90.0)
-        p = tvtk.Property(opacity=0.25, color=LIGHT_YELLOW3)
-        # blast sphere
-        source_obj = mlab.pipeline.builtin_surface()
-        source_obj.source = 'sphere'
-        source_obj.data_source.center = (self.x_mid, self.z_mid, self.y_mid)
-        source_obj.data_source.radius = sphere_radius
-        zones = self.model.frag_zones[pid][munition_az][cid]
-        if zones:
-            output += '{0}'.format(zones[0][0])
-            for z in range(1, len(zones) - 1):
-                output += ', {0}'.format(zones[z][0])
-        else:
-            output += 'None'
 
-        source_obj.data_source.start_theta = 0
-        source_obj.data_source.end_theta = 180
-        source_obj.data_source.phi_resolution = 50
-        source_obj.data_source.theta_resolution = 50
+        # gather only unique zone angles amongst all the components
+        zone_set = set()
+        for cid in comp_ids:
+            zones = frag_zones[pid][mun_az][cid]
+            for z in zones:
+                lower_angle, upper_angle = z[1], z[2]
+                zone_set.add((lower_angle, upper_angle))
+
+        # add each steradian (sphere slice representing a zone) to a single AppendPolyData object, and then
+        # add the PolyData object to the Mayavi pipeline.
+        t = tvtk.Transform()
+        t.rotate_y(mun_aof)
+        t.rotate_z(mun_az)
+        t.rotate_x(90.0)
+        t.translate(self.x_mid, self.y_mid, self.z_mid)
+        p = tvtk.Property(opacity=0.5, color=LIGHT_YELLOW3)
+        source_obj = tvtk.AppendPolyData()
+        for lower_angle, upper_angle in zone_set:
+            frag_zone = tvtk.SphereSource(center=(0, 0, 0), radius=sphere_radius,
+                                          start_theta=lower_angle, end_theta=upper_angle, phi_resolution=50,
+                                          theta_resolution=50)
+            source_obj.add_input_connection(frag_zone.output_port)
+        source_obj.update()
+
         # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
-        surf = mlab.pipeline.surface(source_obj, name='frag sphere')
+        surf = mlab.pipeline.surface(source_obj.output, name='frag zones', reset_zoom=False)
         surf.actor.actor.property = p  # add color
         surf.actor.actor.user_transform = t  # rotate the volume into place
 
