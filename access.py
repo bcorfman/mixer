@@ -47,13 +47,15 @@ class PointBounds(AccessObj):
         # add each steradian (sphere slice representing a zone) to a single AppendPolyData object, and then
         # add the PolyData object to the Mayavi pipeline.
         t = tvtk.Transform()
-        t.rotate_y(mun_aof)
+        # transforms occur in reverse order (The Visualization Toolkit 4th ed, p. 73)
+        t.translate(self.x_mid, self.y_mid, self.z_mid)
+        t.rotate_y(-mun_aof)
         t.rotate_z(mun_az)
         t.rotate_x(90.0)
-        t.translate(self.x_mid, self.y_mid, self.z_mid)
         p = tvtk.Property(opacity=0.5, color=LIGHT_YELLOW3)
         source_obj = tvtk.AppendPolyData()
         for lower_angle, upper_angle in zone_set:
+            # set the center to (0, 0, 0) so rotation occurs about the origin first, then translate at the end.
             frag_zone = tvtk.SphereSource(center=(0, 0, 0), radius=sphere_radius,
                                           start_theta=lower_angle, end_theta=upper_angle, phi_resolution=50,
                                           theta_resolution=50)
@@ -63,7 +65,7 @@ class PointBounds(AccessObj):
         # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
         surf = mlab.pipeline.surface(source_obj.output, name='frag zones', reset_zoom=False)
         surf.actor.actor.property = p  # add color
-        surf.actor.actor.user_transform = t  # rotate the volume into place
+        surf.actor.actor.user_transform = t  # rotate and move the volume into place over the sample point
 
     # noinspection PyMethodMayBeStatic
     def is_cell_outline(self):

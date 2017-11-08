@@ -85,7 +85,7 @@ class MayaviController:
         vtk.vtkObject.GlobalWarningDisplayOff()
 
         # set up window controls and events
-        view.rdoSample.setChecked(True)
+        view.rdoBurst.setChecked(True)
         self.set_window_events(view)
 
         if model.az_averaging and model.dtl_file is not None:
@@ -113,7 +113,8 @@ class MayaviController:
 
         def picker_callback(pick):
             """ This get called on pick events. """
-            if pick.actor in self.plotter.burstpoint_glyphs.actor.actors:
+            # only allow a pick if the chosen actor is in the list of burstpoint (not sample point) objects
+            if pick.actor in self.plotter.burstpoint_glyphs.actor.actors and view.rdoBurst.isChecked():
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is
                 # represented by a glyph with several points
@@ -178,15 +179,12 @@ class MayaviController:
             elif cid in model.frag_ids:
                 output += '   Frag PK for {0}: {1:.2f}\n'.format(model.comps[cid].name,
                                                                  model.comp_pk[pid][az][cid])
-                output += '      Zone '
                 zones = model.frag_zones[pid][az][cid]
                 if zones:
-                    output += '{0}'.format(zones[0][0])
-                    for z in range(1, len(zones) - 1):
-                        output += ', {0}'.format(zones[z][0])
+                    for z in range(len(zones)):
+                        output += '      Zone {0}, {1}-{2} degrees\n'.format(zones[z][0], zones[z][1], zones[z][2])
                 else:
-                    output += 'None'
-                output += '\n'
+                    output += 'None\n'
 
         self.view.txtInfo.setPlainText(output)
 

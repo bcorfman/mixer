@@ -110,20 +110,18 @@ class DataModel(object):
 
     def transform_matrix(self):
         # Store the matrix extents in range & deflection for later display in the 3D scene.
-        self.mtx_extent_range = (self.gridlines_range[0], self.gridlines_range[-1])
         self.mtx_extent_defl = (self.gridlines_defl[0], self.gridlines_defl[-1])
-        # Rotate the matrix by 180 degrees by reversing all gridlines and PK values
-        self.gridlines_range = [-i for i in self.gridlines_range]
-        self.gridlines_defl = [-i for i in self.gridlines_defl]
+        self.mtx_extent_range = (self.gridlines_range[0], self.gridlines_range[-1])
         # Shift gridlines by applying matrix offset and target center extracted from .out file.
         # Otherwise, would have to apply the shift to the target/obstacle surfaces, AVs, blast volumes, etc.
-        self.gridlines_range = util.apply_list_offset(self.gridlines_range, self.offset_range + self.tgt_center[0])
-        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, self.offset_defl + self.tgt_center[1])
+        # TODO: figure out correct offset here!!
+        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, self.offset_defl + self.tgt_center[0])
+        self.gridlines_range = util.apply_list_offset(self.gridlines_range, -self.offset_range - self.tgt_center[1])
         # Calculate midpoint of gridlines and a list of cell sizes based on gridline measurements
-        self.gridlines_range_mid = util.midpoints(self.gridlines_range)
         self.gridlines_defl_mid = util.midpoints(self.gridlines_defl)
-        self.cell_size_range = util.measure_between(self.gridlines_range)
+        self.gridlines_range_mid = util.midpoints(self.gridlines_range)
         self.cell_size_defl = util.measure_between(self.gridlines_defl)
+        self.cell_size_range = util.measure_between(self.gridlines_range)
         # Get rid of floating point noise that can cause Pk values > 1.0
         self.pks = np.clip(self.pks, 0.0, 1.0)
 

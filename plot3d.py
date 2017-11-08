@@ -71,7 +71,9 @@ class Plotter(Visualization):
         self.rgrid_array = None
         self.mtx_callout = None
         self.mun_callout = None
+        self.av_callouts = []
         self.access_obj = None
+        self.center_pt = None  # TODO: Take this out for release.
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -83,6 +85,10 @@ class Plotter(Visualization):
             z.append(model.comps[i].z)
             sz.append(0.3)
             color.append(1.0)
+            title = '{0} ({1},{2},{3})'.format(model.comps[i].name, x[-1], y[-1], z[-1])
+            self.av_callouts.append(Callout(title, justification='center', font_size=9, color=(1, 1, 1),
+                                    position=(x[-1], y[-1], z[-1] + 0.5)))
+            self.scene.add_actor(self.av_callouts[-1].actor)
         pts = self.scene.mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
                                        scalars=color, mode='sphere', scale_factor=1)
         pts.module_manager.scalar_lut_manager.reverse_lut = True
@@ -105,13 +111,15 @@ class Plotter(Visualization):
         # Define rectilinear grid according to the matrix gridlines.
         # Set the single Z coordinate in the elevation array equal to the munition burst height.
         elevations = full(1, 0.0)
-        x_dim, y_dim, z_dim = len(model.gridlines_range), len(model.gridlines_defl), len(elevations)
-        self.rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
+        x_dim, y_dim, z_dim = len(model.gridlines_defl), len(model.gridlines_range), len(elevations)
+        # TODO: Verify correctness with image capture from Tim/Greg tool
+        self.rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_defl, y_coordinates=model.gridlines_range,
                                           z_coordinates=elevations, dimensions=(x_dim, y_dim, z_dim))
         # Grid colors are displayed using an additional array (PKs).
         # T transposes the 2D PK array to match the gridline cells and then
         # ravel() flattens the 2D array to a 1D array for VTK use as scalars.
-        self.rgrid.cell_data.scalars = model.pks.T.ravel()
+        # self.rgrid.cell_data.scalars = model.pks.T.ravel()
+        self.rgrid.cell_data.scalars = model.pks.ravel()
         self.rgrid.cell_data.scalars.name = 'pks'
         self.rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
@@ -138,12 +146,13 @@ class Plotter(Visualization):
                                                                               model.mtx_extent_defl[0],
                                                                               model.mtx_extent_defl[1])
         self.mtx_callout = Callout(text, justification='left', font_size=18, color=(1, 1, 1),
-                                   position=(model.gridlines_range[-1], model.gridlines_defl[0], 4 * spacing))
+                                   position=(model.gridlines_defl[-1], model.gridlines_range[0], 4 * spacing))
         self.scene.add_actor(self.mtx_callout.actor)
 
     def plot_blast_volumes(self):
         model = self.model
         t = tvtk.Transform()
+        # TODO: Figure out why I have to swap y and z values and then rotate around x ... doesn't make sense yet
         t.rotate_x(90.0)
         p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
         for bidx in model.blast_ids:
@@ -190,6 +199,9 @@ class Plotter(Visualization):
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,
         attack azimuth and terminal velocity. """
         model = self.model
+
+        # TODO: Take this out for release.
+        self.center_pt = self.scene.mlab.points3d([0], [0], [0], [1], color=(1, 1, 1), scale_factor=3)
 
         # calculate scaling size for matrix range and deflection text.
         # allow for a missing matrix file by checking to see whether gridlines exist first.
