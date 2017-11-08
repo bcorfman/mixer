@@ -111,15 +111,14 @@ class Plotter(Visualization):
         # Define rectilinear grid according to the matrix gridlines.
         # Set the single Z coordinate in the elevation array equal to the munition burst height.
         elevations = full(1, 0.0)
-        x_dim, y_dim, z_dim = len(model.gridlines_defl), len(model.gridlines_range), len(elevations)
-        # TODO: Verify correctness with image capture from Tim/Greg tool
-        self.rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_defl, y_coordinates=model.gridlines_range,
+        x_dim, y_dim, z_dim = len(model.gridlines_range), len(model.gridlines_defl), len(elevations)
+        self.rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
                                           z_coordinates=elevations, dimensions=(x_dim, y_dim, z_dim))
         # Grid colors are displayed using an additional array (PKs).
         # T transposes the 2D PK array to match the gridline cells and then
         # ravel() flattens the 2D array to a 1D array for VTK use as scalars.
         # self.rgrid.cell_data.scalars = model.pks.T.ravel()
-        self.rgrid.cell_data.scalars = model.pks.ravel()
+        self.rgrid.cell_data.scalars = model.pk_scalars.T.ravel()
         self.rgrid.cell_data.scalars.name = 'pks'
         self.rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
@@ -128,6 +127,9 @@ class Plotter(Visualization):
         # this method puts the surface in the Mayavi pipeline so the user can change it.
         surf = self.scene.mlab.pipeline.surface(self.rgrid, name='matrix')
         surf.actor.actor.property = p
+        t = tvtk.Transform()
+        t.scale(1, -1, 1)  # flip y axis so positive values go the correct direction
+        surf.actor.actor.user_transform = t
         surf.actor.update_data()
 
         # give PK colorbar a range between 0 and 1. The default is to use the min/max values in the array,
@@ -151,9 +153,6 @@ class Plotter(Visualization):
 
     def plot_blast_volumes(self):
         model = self.model
-        t = tvtk.Transform()
-        # TODO: Figure out why I have to swap y and z values and then rotate around x ... doesn't make sense yet
-        t.rotate_x(90.0)
         p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
         for bidx in model.blast_ids:
             comp = model.comps[bidx]
@@ -162,14 +161,13 @@ class Plotter(Visualization):
                 # blast sphere
                 source_obj = mlab.pipeline.builtin_surface()
                 source_obj.source = 'sphere'
-                source_obj.data_source.center = (comp.x, z2, comp.y)
+                source_obj.data_source.center = (comp.x, comp.y, z2)
                 source_obj.data_source.radius = r3
                 source_obj.data_source.phi_resolution = 50
                 source_obj.data_source.theta_resolution = 50
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
                 surf = mlab.pipeline.surface(source_obj, name='blast sphere %s' % comp.name)
                 surf.actor.actor.property = p  # add color
-                surf.actor.actor.user_transform = t  # rotate the volume into place
             else:
                 # double cylinder merged with sphere cap
                 cap = tvtk.SphereSource(center=(comp.x, z2, comp.y), radius=r3, start_theta=0,
@@ -193,6 +191,10 @@ class Plotter(Visualization):
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
                 surf = mlab.pipeline.surface(source_obj.output, name='blast volume %s' % comp.name)
                 surf.actor.actor.property = p  # add color
+                # each transform must occur in reverse order
+                t = tvtk.Transform()
+                t.translate(comp.x, z2, comp.y)
+                t.rotate_x(90.0)
                 surf.actor.actor.user_transform = t  # rotate the volume into place
 
     def plot_munition(self):

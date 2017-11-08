@@ -171,7 +171,8 @@ class MayaviController:
         for cid in comp_ids:
             if cid in model.dh_ids:
                 output += '   DH PK for {0}: {1:.2f}\n'.format(model.comps[cid].name, model.comp_pk[pid][az][cid])
-                surf_name = model.surf_names[model.surface_hit[pid][az]]
+                # surf_names is 0 indexed, but JMAE surface IDs start at 1.
+                surf_name = model.surf_names[model.surface_hit[pid][az] - 1]
                 output += '      Surf hit: {0}\n'.format(surf_name)
             elif cid in model.blast_ids:
                 output += '   Blast PK for {0}: {1:.2f}\n'.format(model.comps[cid].name,
