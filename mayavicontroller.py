@@ -112,7 +112,7 @@ class MayaviController:
         fig.scene.interactor.interactor_style = self.interactor
 
         def picker_callback(pick):
-            """ This get called on pick events. """
+            """ This gets called when left button is clicked. """
             # only allow a pick if the chosen actor is in the list of burstpoint (not sample point) objects
             if pick.actor in self.plotter.burstpoint_glyphs.actor.actors and view.rdoBurst.isChecked():
                 # Find which data point corresponds to the point picked:
@@ -135,7 +135,7 @@ class MayaviController:
                     self.update_point_details(pid)
 
         picker = fig.on_mouse_pick(picker_callback)
-        picker.tolerance = 0.01  # Decrease tolerance, so that we can more easily select a precise point
+        picker.tolerance = 0.005  # Decrease tolerance, so that we can more easily select a precise point
 
     def update_point_details(self, pid):
         model = self.model
@@ -146,8 +146,7 @@ class MayaviController:
         extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
         radius = self.dist_to_active_comps(x, y, z)
         pb = self.plotter.access_obj = PointBounds(self.plotter)
-        pb.display(pid, extent, radius, model.attack_az, model.aof, model.burst_height, model.frag_ids,
-                   model.frag_zones)
+        pb.display(pid, extent, radius, model.attack_az, model.aof, model.frag_ids, model.frag_zones)
         self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
 
     def dist_to_active_comps(self, x, y, z):
@@ -171,9 +170,10 @@ class MayaviController:
         for cid in comp_ids:
             if cid in model.dh_ids:
                 output += '   DH PK for {0}: {1:.2f}\n'.format(model.comps[cid].name, model.comp_pk[pid][az][cid])
-                # surf_names is 0 indexed, but JMAE surface IDs start at 1.
-                surf_name = model.surf_names[model.surface_hit[pid][az] - 1]
-                output += '      Surf hit: {0}\n'.format(surf_name)
+                if model.comp_pk[pid][az][cid] > 0.0:
+                    # surf_names is 0 indexed, but JMAE surface IDs start at 1.
+                    surf_name = model.surf_names[model.surface_hit[pid][az] - 1]
+                    output += '      Surf hit: {0}\n'.format(surf_name)
             elif cid in model.blast_ids:
                 output += '   Blast PK for {0}: {1:.2f}\n'.format(model.comps[cid].name,
                                                                   model.comp_pk[pid][az][cid])
