@@ -152,7 +152,7 @@ class Plotter(Visualization):
 
     def plot_blast_volumes(self):
         model = self.model
-        p = tvtk.Property(opacity=0.25, color=PURPLE)
+        p = tvtk.Property(opacity=0.25, color=GYPSY_PINK)
         for bidx in model.blast_ids:
             comp = model.comps[bidx]
             r1, r2, r3, z1, z2 = model.blast_vol[bidx]
