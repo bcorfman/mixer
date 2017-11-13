@@ -393,11 +393,13 @@ class Kill(object):
         curr_kill = ''
         curr_key = ''
         model = self.model
+        line_no = 0
         with open(kill_file) as self.kill:
             line = self.kill.readline()  # read past top header line
             if not line:
                 return
             line = self.kill.readline()
+            line_no += 1
             if not line:
                 raise IOError('Cannot read kill file.')
             tokens = line.split()
@@ -407,6 +409,7 @@ class Kill(object):
             # parse all kills listed in header looking for the description listed in .out file.
             for i in range(model.num_kills):
                 line = self.kill.readline()
+                line_no += 1
                 if not line:
                     raise IOError('Cannot read component line %d in kill file header.'.format(i))
                 tokens = line.split(None, 3)
@@ -418,6 +421,7 @@ class Kill(object):
             # now parse kill lines
             while True:
                 line = self.kill.readline()
+                line_no += 1
                 if not line:
                     break
                 line = line.strip()
@@ -448,7 +452,7 @@ class Kill(object):
                     # hold onto last node so we can later extract all components for that kill in DataModel
                     model.last_node[curr_kill] = tokens[0]
                 else:
-                    raise ValueError('Unrecognized token in kill file, line %d')
+                    raise ValueError('Unrecognized token in kill file, line %d' % line_no)
 
 
 class Matrix(object):
