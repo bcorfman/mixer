@@ -85,9 +85,11 @@ class Plotter(Visualization):
             sz.append(0.3)
             color.append(1.0)
             title = '{0} ({1},{2},{3})'.format(model.comps[i].name, x[-1], y[-1], z[-1])
-            self.av_callouts.append(Callout(title, justification='center', font_size=9, color=(1, 1, 1),
-                                    position=(x[-1], y[-1], z[-1] + 0.5)))
-            self.scene.add_actor(self.av_callouts[-1].actor)
+            callout = Callout(title, justification='center', font_size=9, color=(1, 1, 1),
+                              position=(x[-1], y[-1], z[-1] + 0.5))
+            callout.visible = False
+            self.av_callouts.append(callout)
+            self.scene.add_actor(callout.actor)
         pts = self.scene.mlab.quiver3d([x], [y], [z], [sz], [sz], [sz], name='component AV', colormap='blue-red',
                                        scalars=color, mode='sphere', scale_factor=1)
         pts.module_manager.scalar_lut_manager.reverse_lut = True
@@ -339,3 +341,8 @@ class Plotter(Visualization):
     def update_point_detail(self, az, points):
         self.selected_az = az
         self.radius_points = points
+
+    def set_av_callouts_visible(self, is_visible):
+        for c in self.av_callouts:
+            c.visible = is_visible
+

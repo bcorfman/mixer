@@ -197,6 +197,7 @@ class MayaviController:
         view.btnHome.clicked.connect(self.on_btn_home_clicked)
         view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
         view.btnClearSel.clicked.connect(self.on_btn_clear_clicked)
+        view.chkCompNames.clicked.connect(self.on_chk_compnames_clicked)
 
     def setup_detailed_output_frames(self, model, view):
         layout = view.frmAzimuth.layout()
@@ -258,6 +259,10 @@ class MayaviController:
         obj.hide()
         if not obj.is_cell_outline():
             self.update_point_details(pid)
+
+    def on_chk_compnames_clicked(self):
+        self.plotter.set_av_callouts_visible(self.view.chkCompNames.isChecked())
+        self.view.update()
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():
