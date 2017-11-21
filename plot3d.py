@@ -9,7 +9,7 @@ from traitsui.api import View, Item
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
 from mayavi.core.api import Engine
 from callout import Callout
-from const import GYPSY_PINK, PURPLE
+from const import GYPSY_PINK
 
 """
 Created on Wed Nov 27 10:37:08 2013
@@ -118,8 +118,7 @@ class Plotter(Visualization):
         # Grid colors are displayed using an additional array (PKs).
         # T transposes the 2D PK array to match the gridline cells and then
         # ravel() flattens the 2D array to a 1D array for VTK use as scalars.
-        # self.rgrid.cell_data.scalars = model.pks.T.ravel()
-        self.rgrid.cell_data.scalars = model.pk_scalars.T.ravel()
+        self.rgrid.cell_data.scalars = model.pks.T.ravel()
         self.rgrid.cell_data.scalars.name = 'pks'
         self.rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
 
@@ -128,9 +127,6 @@ class Plotter(Visualization):
         # this method puts the surface in the Mayavi pipeline so the user can change it.
         surf = self.scene.mlab.pipeline.surface(self.rgrid, name='matrix')
         surf.actor.actor.property = p
-        t = tvtk.Transform()
-        t.scale(1, -1, 1)  # flip y axis so positive values go the correct direction
-        surf.actor.actor.user_transform = t
         surf.actor.update_data()
 
         # give PK colorbar a range between 0 and 1. The default is to use the min/max values in the array,
@@ -149,7 +145,7 @@ class Plotter(Visualization):
                                                                               model.mtx_extent_defl[0],
                                                                               model.mtx_extent_defl[1])
         self.mtx_callout = Callout(text, justification='left', font_size=18, color=(1, 1, 1),
-                                   position=(model.gridlines_defl[-1], model.gridlines_range[0], 4 * spacing))
+                                   position=(model.gridlines_range[-1], model.gridlines_defl[0], 4 * spacing))
         self.scene.add_actor(self.mtx_callout.actor)
 
     def plot_blast_volumes(self):
@@ -230,8 +226,6 @@ class Plotter(Visualization):
                 # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
                 surf = mlab.pipeline.surface(source_obj.output, name='blast volume %s' % comp.name)
                 surf.actor.actor.property = p  # add color
-                # TODO: Remove before release
-                # self.scene.mlab.points3d([comp.x], [comp.y], z1 / 2 + 0.01, [1], color=(1, 1, 1), scale_factor=2.0)
 
     def plot_munition(self):
         """ Plot an arrow showing direction of incoming munition and display text showing angle of fall,

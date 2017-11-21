@@ -59,7 +59,6 @@ class DataModel(object):
         self.comp_num = None
         self.sample_loc = None
         self.burst_loc = None
-        self.pk_scalars = None
 
     def read_and_transform_all_files(self, out_file):
         av_file, srf_file, mtx_file, kill_file, dtl_file = Output(self).read(out_file)
@@ -111,20 +110,21 @@ class DataModel(object):
 
     def transform_matrix(self):
         # Store the matrix extents in range & deflection for later display in the 3D scene.
-        self.mtx_extent_defl = (self.gridlines_defl[0], self.gridlines_defl[-1])
         self.mtx_extent_range = (self.gridlines_range[0], self.gridlines_range[-1])
-        # Shift gridlines by subtracting out matrix offset and target center extracted from .out file.
+        self.mtx_extent_defl = (self.gridlines_defl[0], self.gridlines_defl[-1])
+        # Flip gridlines in range to match Mayavi's Y axis direction.
+        self.gridlines_range = [-i for i in self.gridlines_range]
+        # Shift gridlines by applying matrix offset and target center extracted from .out file.
         # Otherwise, would have to apply the shift to the target/obstacle surfaces, AVs, blast volumes, etc.
-        self.gridlines_range = util.apply_list_offset(self.gridlines_range, -self.offset_range - self.tgt_center[0])
-        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, -self.offset_defl - self.tgt_center[1])
+        self.gridlines_range = util.apply_list_offset(self.gridlines_range, self.offset_range + self.tgt_center[0])
+        self.gridlines_defl = util.apply_list_offset(self.gridlines_defl, self.offset_defl + self.tgt_center[1])
         # Calculate midpoint of gridlines and a list of cell sizes based on gridline measurements
-        self.gridlines_defl_mid = util.midpoints(self.gridlines_defl)
         self.gridlines_range_mid = util.midpoints(self.gridlines_range)
-        self.cell_size_defl = util.measure_between(self.gridlines_defl)
+        self.gridlines_defl_mid = util.midpoints(self.gridlines_defl)
         self.cell_size_range = util.measure_between(self.gridlines_range)
+        self.cell_size_defl = util.measure_between(self.gridlines_defl)
         # Get rid of floating point noise that can cause Pk values > 1.0
         self.pks = np.clip(self.pks, 0.0, 1.0)
-        self.pk_scalars = np.fliplr(np.flipud(self.pks))
 
     def extract_components(self, kill_type, kill_node=None):
         """

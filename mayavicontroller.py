@@ -56,7 +56,7 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
         gridlines_defl = self.model.gridlines_defl
         gridlines_range = self.model.gridlines_range
         for i in range(len(gridlines_defl) - 1):
-            if gridlines_defl[i] >= defl >= gridlines_defl[i+1]:
+            if gridlines_defl[i] <= defl <= gridlines_defl[i+1]:
                 defl_index = i
                 break
         rng_index = None
@@ -262,7 +262,8 @@ class MayaviController:
 
     def on_chk_compnames_clicked(self):
         self.plotter.set_av_callouts_visible(self.view.chkCompNames.isChecked())
-        self.view.update()
+        self.plotter.scene.render()
+        # self.view.update()
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():
