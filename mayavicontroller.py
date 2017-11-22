@@ -144,18 +144,9 @@ class MayaviController:
         azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
         extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
-        radius = self.dist_to_active_comps(x, y, z)
         pb = self.plotter.access_obj = PointBounds(self.plotter)
-        pb.display(pid, extent, radius, model.attack_az, model.aof, model.frag_ids, model.frag_zones)
+        pb.display(pid, extent, model.attack_az, model.aof, model.frag_ids, model.frag_zones)
         self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
-
-    def dist_to_active_comps(self, x, y, z):
-        model = self.model
-        dist = 0.0
-        for i in model.frag_ids:
-            cmp_x, cmp_y, cmp_z = model.comps[i].x, model.comps[i].y, model.comps[i].z
-            dist = max(sqrt((x - cmp_x) ** 2 + (y - cmp_y) ** 2 + (z - cmp_z) ** 2), dist)
-        return dist
 
     # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
     def print_point_details(self, pid, x, y, z):
