@@ -3,6 +3,7 @@ from tvtk.api import tvtk
 from callout import Callout
 from const import WHITE
 from math import sqrt
+import collections
 
 
 class AccessObj:
@@ -18,13 +19,17 @@ class PointBounds(AccessObj):
         self.x_mid = None
         self.y_mid = None
         self.z_mid = None
+        self.surf = None
 
     def hide(self):
         self.plotter.outline.visible = False
+        if self.surf is not None:
+            self.surf.visible = False
 
     def display(self, pid, extent, mun_az, mun_aof, comp_ids, frag_zones):
         if self.plotter.access_obj is not None:
             self.plotter.access_obj.hide()
+        model = self.plotter.model
         x_min, x_max, y_min, y_max, z_min, z_max = extent
         self.x_mid = (x_max - x_min) / 2.0 + x_min
         self.y_mid = (y_max - y_min) / 2.0 + y_min
@@ -47,26 +52,40 @@ class PointBounds(AccessObj):
         t.rotate_x(180.0)  # 0 deg is at North Pole by default, so must flip 180 deg to match JMAE orientation
         p = tvtk.Property(opacity=0.5, color=WHITE)
         source_obj = tvtk.AppendPolyData()
-        # gather only unique zone angles amongst all the components
-        zone_set = set()
+        # create reverse lookup -- all component ids that use each zone angle
+        zone_lookup = collections.defaultdict(list)
         for cid in comp_ids:
             zones = frag_zones[pid][mun_az][cid]
-            for z in zones:
-                lower_angle, upper_angle = z[1], z[2]
-                zone_set.add((lower_angle, upper_angle))
-            for lower_angle, upper_angle in zone_set:
+            for _, lower_angle, upper_angle in zones:
+                zone_lookup[(lower_angle, upper_angle)].append(cid)
+        # display each frag zone using largest radius of involved components
+        max_radius = 0.0
+        for zone in zone_lookup:
+            lower_angle, upper_angle = zone
+            for cid in zone_lookup[zone]:
                 sphere_radius = self.dist_to_active_comps(cid)
+                max_radius = max(sphere_radius, max_radius)
                 # set the center to (0, 0, 0) so rotation occurs about the origin first, then translate at the end.
                 frag_zone = tvtk.SphereSource(center=(0, 0, 0), radius=sphere_radius,
                                               start_phi=lower_angle, end_phi=upper_angle, phi_resolution=50,
                                               theta_resolution=50)
                 source_obj.add_input_connection(frag_zone.output_port)
         source_obj.update()
-
+        x_len = abs(model.mtx_extent_range[0] - model.mtx_extent_range[1])
+        y_len = abs(model.mtx_extent_defl[0] - model.mtx_extent_defl[1])
+        cube = tvtk.CubeSource(center=(0, 0, model.burst_height - max_radius / 2.0), x_length=x_len, y_length=y_len,
+                               z_length=max_radius)
+        tri1 = tvtk.TriangleFilter(input_connection=source_obj.output_port)
+        tri2 = tvtk.TriangleFilter(input_connection=cube.output_port)
+        boolean_op = tvtk.BooleanOperationPolyDataFilter()
+        boolean_op.operation = 'difference'
+        boolean_op.add_input_connection(0, tri1.output_port)
+        boolean_op.add_input_connection(1, tri2.output_port)
+        boolean_op.update()
         # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
-        surf = mlab.pipeline.surface(source_obj.output, name='frag zones', reset_zoom=False)
-        surf.actor.actor.property = p  # add color
-        surf.actor.actor.user_transform = t  # rotate and move the volume into place over the sample point
+        self.surf = mlab.pipeline.surface(boolean_op.output, name='frag zones', reset_zoom=False)
+        self.surf.actor.actor.property = p  # add color
+        self.surf.actor.actor.user_transform = t  # rotate and move the volume into place over the sample point
 
     def dist_to_active_comps(self, idx):
         model = self.plotter.model
