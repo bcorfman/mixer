@@ -570,6 +570,8 @@ class Detail(object):
         tokens = line.split(':', 15)
         idx = int(tokens[0])
         if idx < self.bp_idx:
+            # prevents any remedial points (index of 1) from being parsed,
+            # unless there are ONLY remedial points, in which case, it will parse only one.
             return False
         self.bp_idx = idx
         if not model.sample_loc.get(idx):
@@ -673,11 +675,11 @@ class Detail(object):
 
         with open(dtl_file) as self.dtl:
             # skip past header
-            for _ in range(8):
-                self.dtl.readline()
-            self._parse_radius(self.dtl.readline())
-            self._parse_evaluation_center(self.dtl.readline())
-            self._parse_direct_hit(self.dtl.readline())
+            # for _ in range(8):
+            #    self.dtl.readline()
+            # self._parse_radius(self.dtl.readline())
+            # self._parse_evaluation_center(self.dtl.readline())
+            # self._parse_direct_hit(self.dtl.readline())
             while 1:
                 line = self.dtl.readline()
                 if not line:

@@ -43,8 +43,8 @@ class PointBounds(AccessObj):
         # transforms occur in reverse order (The Visualization Toolkit 4th ed, p. 73)
         t.translate(self.x_mid, self.y_mid, self.z_mid)
         t.rotate_z(mun_az)
-        t.rotate_y(mun_aof)
-        t.rotate_x(90.0)
+        t.rotate_y(-90.0 + mun_aof)
+        t.rotate_x(180.0)  # 0 deg is at North Pole by default, so must flip 180 deg to match JMAE orientation
         p = tvtk.Property(opacity=0.5, color=WHITE)
         source_obj = tvtk.AppendPolyData()
         # gather only unique zone angles amongst all the components
@@ -58,7 +58,7 @@ class PointBounds(AccessObj):
                 sphere_radius = self.dist_to_active_comps(cid)
                 # set the center to (0, 0, 0) so rotation occurs about the origin first, then translate at the end.
                 frag_zone = tvtk.SphereSource(center=(0, 0, 0), radius=sphere_radius,
-                                              start_theta=lower_angle, end_theta=upper_angle, phi_resolution=50,
+                                              start_phi=lower_angle, end_phi=upper_angle, phi_resolution=50,
                                               theta_resolution=50)
                 source_obj.add_input_connection(frag_zone.output_port)
         source_obj.update()
