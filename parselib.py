@@ -542,16 +542,25 @@ class Detail(object):
 
     # noinspection PyUnusedLocal
     def _parse_radius(self, line):
-        line = self.dtl.readline()
-        tokens = line.split(':')
-        self.model.radius = float(tokens[1])
+        if line.startswith('RADIUS ID'):
+            line = self.dtl.readline()
+            tokens = line.split(':')
+            self.model.radius = float(tokens[1])
+        else:
+            raise ValueError('RADIUS ID token not found in .dtl file')
 
     def _parse_evaluation_center(self, line):
-        tokens = line.strip().split(':')
-        self.model.eval_center = [float(tokens[1]), float(tokens[2]), float(tokens[3])]
+        if line.startswith('EVALUATION CENTER'):
+            tokens = line.strip().split(':')
+            self.model.eval_center = [float(tokens[1]), float(tokens[2]), float(tokens[3])]
+        else:
+            raise ValueError('EVALUATION CENTER token not found in .dtl file')
 
     def _parse_direct_hit(self, line):
-        self.model.dh_include_frag_effects = True if line.split(':')[1].startswith('T') else False
+        if line.startswith('DH PKs include fragments?'):
+            self.model.dh_include_frag_effects = True if line.split(':')[1].startswith('T') else False
+        else:
+            raise ValueError('DH PKs token not found in .dtl file')
 
     # noinspection PyUnusedLocal
     def _parse_burstpoint(self, line):

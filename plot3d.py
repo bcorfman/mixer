@@ -111,7 +111,7 @@ class Plotter(Visualization):
 
         # Define rectilinear grid according to the matrix gridlines.
         # Set the single Z coordinate in the elevation array equal to the munition burst height.
-        elevations = full(1, 0.0)
+        elevations = full(1, model.burst_height)
         x_dim, y_dim, z_dim = len(model.gridlines_range), len(model.gridlines_defl), len(elevations)
         self.rgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
                                           z_coordinates=elevations, dimensions=(x_dim, y_dim, z_dim))
