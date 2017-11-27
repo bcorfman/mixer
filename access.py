@@ -37,13 +37,6 @@ class PointBounds(AccessObj):
                                        self.z_mid - 0.5, self.z_mid + 0.5)
         self.plotter.outline.visible = True
 
-        # gather only unique zone angles amongst all the components
-        zone_set = set()
-        for cid in comp_ids:
-            zones = frag_zones[pid][mun_az][cid]
-            for z in zones:
-                zone_set.add(z)
-
         # add each steradian (sphere slice representing a zone) to a single AppendPolyData object, and then
         # add the PolyData object to the Mayavi pipeline.
         t = tvtk.Transform()
@@ -54,13 +47,20 @@ class PointBounds(AccessObj):
         t.rotate_x(90.0)
         p = tvtk.Property(opacity=0.5, color=WHITE)
         source_obj = tvtk.AppendPolyData()
-        for idx, lower_angle, upper_angle in zone_set:
-            sphere_radius = self.dist_to_active_comps(idx)
-            # set the center to (0, 0, 0) so rotation occurs about the origin first, then translate at the end.
-            frag_zone = tvtk.SphereSource(center=(0, 0, 0), radius=sphere_radius,
-                                          start_theta=lower_angle, end_theta=upper_angle, phi_resolution=50,
-                                          theta_resolution=50)
-            source_obj.add_input_connection(frag_zone.output_port)
+        # gather only unique zone angles amongst all the components
+        zone_set = set()
+        for cid in comp_ids:
+            zones = frag_zones[pid][mun_az][cid]
+            for z in zones:
+                lower_angle, upper_angle = z[1], z[2]
+                zone_set.add((lower_angle, upper_angle))
+            for lower_angle, upper_angle in zone_set:
+                sphere_radius = self.dist_to_active_comps(cid)
+                # set the center to (0, 0, 0) so rotation occurs about the origin first, then translate at the end.
+                frag_zone = tvtk.SphereSource(center=(0, 0, 0), radius=sphere_radius,
+                                              start_theta=lower_angle, end_theta=upper_angle, phi_resolution=50,
+                                              theta_resolution=50)
+                source_obj.add_input_connection(frag_zone.output_port)
         source_obj.update()
 
         # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
