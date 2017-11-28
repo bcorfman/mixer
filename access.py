@@ -73,8 +73,9 @@ class PointBounds(AccessObj):
         source_obj.update()
         x_len = abs(model.mtx_extent_range[0] - model.mtx_extent_range[1])
         y_len = abs(model.mtx_extent_defl[0] - model.mtx_extent_defl[1])
-        cube = tvtk.CubeSource(center=(0, 0, model.burst_height - max_radius / 2.0), x_length=x_len, y_length=y_len,
-                               z_length=max_radius)
+        cube = tvtk.CubeSource(center=(model.offset_range+model.tgt_center[0], +model.offset_defl+model.tgt_center[1],
+                                       -model.burst_height / 2.0),
+                               x_length=x_len, y_length=y_len, z_length=max_radius)
         tri1 = tvtk.TriangleFilter(input_connection=source_obj.output_port)
         tri2 = tvtk.TriangleFilter(input_connection=cube.output_port)
         boolean_op = tvtk.BooleanOperationPolyDataFilter()
@@ -83,9 +84,9 @@ class PointBounds(AccessObj):
         boolean_op.add_input_connection(1, tri2.output_port)
         boolean_op.update()
         # adding TVTK poly to Mayavi pipeline will do all the rest of the setup necessary to view the volume
-        self.surf = mlab.pipeline.surface(boolean_op.output, name='frag zones', reset_zoom=False)
+        self.surf = mlab.pipeline.surface(tri2.output, name='frag zones', reset_zoom=False)
         self.surf.actor.actor.property = p  # add color
-        self.surf.actor.actor.user_transform = t  # rotate and move the volume into place over the sample point
+        #self.surf.actor.actor.user_transform = t  # rotate and move the volume into place over the sample point
 
     def dist_to_active_comps(self, idx):
         model = self.plotter.model

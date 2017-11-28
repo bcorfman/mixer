@@ -674,12 +674,6 @@ class Detail(object):
         model.comp_pk = {}
 
         with open(dtl_file) as self.dtl:
-            # skip past header
-            # for _ in range(8):
-            #    self.dtl.readline()
-            # self._parse_radius(self.dtl.readline())
-            # self._parse_evaluation_center(self.dtl.readline())
-            # self._parse_direct_hit(self.dtl.readline())
             while 1:
                 line = self.dtl.readline()
                 if not line:
