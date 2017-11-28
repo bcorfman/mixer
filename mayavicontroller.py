@@ -145,7 +145,7 @@ class MayaviController:
         x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
         extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
         pb = self.plotter.access_obj = PointBounds(self.plotter)
-        pb.display(pid, extent, model.attack_az, model.aof, model.frag_ids, model.frag_zones)
+        pb.display(pid, extent, azim, model.aof, model.frag_ids, model.frag_zones)
         self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
 
     # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
@@ -223,33 +223,25 @@ class MayaviController:
 
     # noinspection PyUnusedLocal
     def on_rdo_azimuth_clicked(self, button):
-        pid = self.plotter.pid
         self.view.txtInfo.setPlainText("")
         self.update_radius_params()
         obj = self.plotter.access_obj
+        is_visible = obj.is_visible()
         obj.hide()
-        if obj.is_cell_outline():
-            self.update_point_details(pid)
+        if is_visible and not obj.is_cell_outline():
+            self.update_point_details(self.plotter.pid)
 
     def on_rdo_sample(self):
-        pid = self.plotter.pid
         self.view.txtInfo.setPlainText("")
-        self._set_lbl_azimuth_text()
         self.update_radius_params()
         obj = self.plotter.access_obj
         obj.hide()
-        if not obj.is_cell_outline():
-            self.update_point_details(pid)
 
     def on_rdo_burst(self):
-        pid = self.plotter.pid
         self.view.txtInfo.setPlainText("")
-        self._set_lbl_azimuth_text()
         self.update_radius_params()
         obj = self.plotter.access_obj
         obj.hide()
-        if not obj.is_cell_outline():
-            self.update_point_details(pid)
 
     def on_chk_compnames_clicked(self):
         self.plotter.set_av_callouts_visible(self.view.chkCompNames.isChecked())

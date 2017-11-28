@@ -73,6 +73,7 @@ class Plotter(Visualization):
         self.mun_callout = None
         self.av_callouts = []
         self.access_obj = None
+        self.lut_table = None
 
     def plot_av(self):
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
@@ -104,6 +105,8 @@ class Plotter(Visualization):
         self.target = mlab.pipeline.surface(poly_obj, name='target')
         self.target.actor.property.representation = 'wireframe'
         self.target.actor.property.color = (0, 0, 0)
+        # save this table for later in case of frag zone plotting
+        self.lut_table = self.target.module_manager.scalar_lut_manager.lut
 
     # noinspection SpellCheckingInspection
     def plot_matrix_file(self):
