@@ -192,8 +192,7 @@ class MayaviController:
 
     def setup_detailed_output_frames(self, model, view):
         layout = view.frmAzimuth.layout()
-        point_type = 'sample' if view.rdoSample.isChecked() else 'burst'
-        label_text = 'View {0} points at attack azimuth:'.format(point_type)
+        label_text = 'View burst points at attack azimuth:'
         view.lblAzimuth = QtGui.QLabel(label_text, view.frmAzimuth)
         layout.addWidget(view.lblAzimuth)
         view.buttonGroup = QtGui.QButtonGroup(view.frmAzimuth)
@@ -233,12 +232,20 @@ class MayaviController:
 
     def on_rdo_sample(self):
         self.view.txtInfo.setPlainText("")
+        if self.model.az_averaging and self.model.dtl_file is not None:
+            self.view.lblAzimuth.setEnabled(False)
+            for btn in self.view.buttonGroup.buttons():
+                btn.setEnabled(False)
         self.update_radius_params()
         obj = self.plotter.access_obj
         obj.hide()
 
     def on_rdo_burst(self):
         self.view.txtInfo.setPlainText("")
+        if self.model.az_averaging and self.model.dtl_file is not None:
+            self.view.lblAzimuth.setEnabled(True)
+            for btn in self.view.buttonGroup.buttons():
+                btn.setEnabled(True)
         self.update_radius_params()
         obj = self.plotter.access_obj
         obj.hide()
