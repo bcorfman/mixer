@@ -1,5 +1,4 @@
 from PyQt4 import QtGui
-from tvtk.pyface.api import DecoratedScene
 
 
 class MayaviQWidget(QtGui.QWidget):

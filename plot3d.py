@@ -1,7 +1,6 @@
 import math
 from numpy import array, full, ones_like
 import util
-import vtk
 from tvtk.api import tvtk
 from mayavi import mlab
 from traits.api import HasTraits, Instance, on_trait_change

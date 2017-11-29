@@ -1,6 +1,5 @@
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFileDialog
-from math import sqrt
 import vtk
 from mayavi_qt import MayaviQWidget
 from plot3d import Plotter
