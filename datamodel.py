@@ -78,12 +78,13 @@ class DataModel(object):
                 self.dtl_file = dtl_file
             else:
                 raise IOError(".dtl file does not have the full level of detail.")
+        # extract the component IDs that are part of the selected kill in the kill definition file.
         kill_comps = set(self.extract_components(self.mtx_kill_id))
+        # translate the underlying geometric representation to the correct coordinates before display.
         self.transform_blast_volumes(kill_comps)
         self.transform_direct_hit_components(kill_comps)
         self.transform_frag_components(kill_comps)
         self.transform_surfaces()
-        self.find_closest_az_and_el_indices()
 
     def transform_blast_volumes(self, kill_ids):
         """ Keep only the blast AVs that match with the frag components listed in the selected kill. """
@@ -156,26 +157,6 @@ class DataModel(object):
             else:
                 raise ValueError("Unrecognized item %s in kill file for %s" % (item, kill_type))
         return components
-
-    def find_closest_az_and_el_indices(self):
-        """
-        find and set closest azimuth index and elevation index that will be used to display appropriate AVs/PEs from
-         the component AV file.
-        :return: None
-        """
-        # TODO: Include JMAE interpolation code to get AVs to be a true match
-        # Obtain deltas between all azimuths in the AV file and the chosen attack azimuth.
-        # This algorithm still works for azimuth averaged data since there's only one azimuth in the list.
-        az_delta_idx_pairs = util.delta(self.azs, self.attack_az)
-        az_delta_idx_pairs.sort()  # order by smallest to largest delta
-
-        # obtain deltas between all elevations in the AV file and the chosen angle of fall
-        el_delta_idx_pairs = util.delta(self.els, self.aof)
-        el_delta_idx_pairs.sort()  # order by smallest to largest delta
-
-        # first item in deltas (smallest delta after sorting) and the second item in the pair (index)
-        self.az_idx = az_delta_idx_pairs[0][1]
-        self.el_idx = el_delta_idx_pairs[0][1]
 
     def get_sample_points(self):
         return self.sample_loc
