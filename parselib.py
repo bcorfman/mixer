@@ -6,6 +6,7 @@ from const import CMPID, R1, R2, R3, Z1, Z2
 
 
 class AVComp(object):
+    """ Represents a vulnerable area component. """
     def __init__(self, **args):
         self.x = args['x']
         self.y = args['y']
@@ -14,6 +15,7 @@ class AVComp(object):
 
 
 class AV(object):
+    """ AV file parser. """
     def __init__(self, model=None):
         if model is None:
             self.model = self
@@ -153,6 +155,7 @@ class AV(object):
 
 
 class Surfaces(object):
+    """ Surface file parser. """
     def __init__(self, model=None):
         if model is None:
             self.model = self
@@ -331,6 +334,8 @@ class Output(object):
         :return:
         """
         model = self.model
+        # Use dictionary for parsing. If the start of the line matches the key, then call the associated value (method)
+        # for parsing.
         match = {'TARGET AV FILE': self._parse_av_file,
                  'TARGET CENTER COORDINATES': self._parse_target_center,
                  'TERMINAL VELOCITY': self._parse_term_vel,
@@ -365,12 +370,14 @@ class Output(object):
 
 
 class KillNode(object):
+    """ Represents a node in the kill file, i.e., an operation with an associated list of items. """
     def __init__(self, op, items):
         self.op = op or ''
         self.items = items or []
 
 
 class Kill(object):
+    """ Kill definition file parser. """
     def __init__(self, model=None):
         if model is None:
             self.model = self
@@ -456,6 +463,7 @@ class Kill(object):
 
 
 class Matrix(object):
+    """ Matrix file parser. """
     def __init__(self, model=None):
         if model is None:
             self.model = self
@@ -512,6 +520,7 @@ class Matrix(object):
 
 
 class Detail(object):
+    """ Detail file parser. This only parses the full detail file, i.e., burstpoint, component and frag detail."""
     def __init__(self, model=None, az_averaging=None, attack_az=None, blast_ids=None, dh_ids=None):
         if model is None:
             self.model = self
@@ -570,8 +579,8 @@ class Detail(object):
         tokens = line.split(':', 15)
         idx = int(tokens[0])
         if idx < self.bp_idx:
-            # prevents any remedial points (index of 1) from being parsed,
-            # unless there are ONLY remedial points, in which case, it will parse only one.
+            # Prevents any remedial points (index of 1) from being parsed,
+            # TODO: unless there are ONLY remedial points, in which case, it will parse only one.
             return False
         self.bp_idx = idx
         if not model.sample_loc.get(idx):
@@ -658,6 +667,8 @@ class Detail(object):
         :param dtl_file: Detailed output filename.
         :return: None
         """
+        # Use dictionary for parsing. If the start of the line matches the key, then call the associated value (method)
+        # for parsing.
         match = {'BPNUM': self._parse_burstpoint,
                  ':FRAGMENTATION': self._parse_fragmentation,
                  ':COMPONENT': self._parse_component

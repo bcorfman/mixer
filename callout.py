@@ -2,6 +2,8 @@ from tvtk.api import tvtk
 
 
 class Callout:
+    """ A Pythonic wrapper for a TVTK text actor that makes it easier to create a callout above an object
+    on the 3D scene. """
     def __init__(self, text="", **args):
         self.__text_actor = tvtk.TextActor()
         if args.get('justification'):

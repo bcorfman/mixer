@@ -61,7 +61,6 @@ class DataModel(object):
         self.burst_loc = None
 
     def read_and_transform_all_files(self, out_file):
-        # TODO: Parse the .out file and extract the av, surfaces
         av_file, srf_file, mtx_file, kill_file, dtl_file = Output(self).read(out_file)
         if av_file is None:
             raise IOError("Case didn't complete.")

@@ -18,12 +18,11 @@ __author__ = 'brandon.corfman'
 __doc__ = '''
     Plot a target scene using JMAE input and output files.
 
-    The AVs in AVFILE are plotted as a 3D bubble chart at the az & el defined in the output file.
-    Vulnerable areas are sized by magnitude, and probabilities of exposure are graded by color
-    (full red = 1.0, full green = 0.0).
-
+    The AVs in AVFILE are plotted as small red spheres. 
     Target surfaces are plotted as wireframe quads.
     Blast volumes are plotted as spheres or double cylinders with sphere caps.
+    Matrix is a VTK rectilinear grid that can display either fixed- or exponential-size cells.
+    Sample/burst points are displayed as small white spheres.
 '''
 
 
@@ -75,6 +74,7 @@ class Plotter(Visualization):
         self.lut_table = None
 
     def plot_av(self):
+        """ Plot fragment vulnerable AVs as points (spheres) on the 3D scene."""
         # TODO: plot AVs based on interpolation like JMAE (not just the nearest ones)
         model = self.model
         x, y, z, sz, color = [], [], [], [], []
@@ -98,6 +98,7 @@ class Plotter(Visualization):
 
     # noinspection SpellCheckingInspection
     def plot_srf_file(self):
+        """ Reformat target model surfaces as a numpy array, and display them as wireframe polygons on the 3D scene. """
         model = self.model
         polys = array([[4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3] for i in range(len(model.surfaces) // 4)])
         poly_obj = tvtk.PolyData(points=model.surfaces, polys=polys)
@@ -109,6 +110,7 @@ class Plotter(Visualization):
 
     # noinspection SpellCheckingInspection
     def plot_matrix_file(self):
+        """ Show matrix as a VTK rectilinear grid at the munition burst height. """
         model = self.model
 
         # Define rectilinear grid according to the matrix gridlines.
@@ -263,7 +265,8 @@ class Plotter(Visualization):
             self.mun_callout = Callout(label, justification='left', font_size=14, color=(1, 1, 1),
                                        position=(xloc, yloc, zloc + 3))
             self.scene.add_actor(self.mun_callout.actor)
-        else:
+        else:  # azimuth averaged case
+            # plot arrows showing incoming AOF for each azimuth
             for az in range(0, 360, int(model.attack_az)):
                 xv, yv, zv = util.rotate_pt_around_yz_axes(1.0, 0.0, 0.0, model.aof, az)
 
@@ -274,6 +277,7 @@ class Plotter(Visualization):
                 self.scene.mlab.quiver3d([xloc], [yloc], [zloc], [xv], [yv], [zv], color=(1, 1, 1), reset_zoom=False,
                                          scale_factor=15, name='munition %d deg' % az)
                 if az == 0:
+                    # display one callout showing terminal conditions above the 0 degree azimuth arrow.
                     format_str = '{0} deg AOF\nAvg attack az - {1} deg inc.\n{2} ft/s terminal velocity\n'
                     format_str += '{3} fr. burst height'
                     label = format_str.format(model.aof, model.attack_az, model.term_vel, model.burst_height)
@@ -282,6 +286,7 @@ class Plotter(Visualization):
                     self.scene.add_actor(self.mun_callout.actor)
 
     def plot_detail(self):
+        """ Plot burstpoints or sample points from the detail file."""
         self.sel_x, self.sel_y, self.sel_z = [], [], []
         points = self.radius_points
         az = self.selected_az
@@ -303,6 +308,7 @@ class Plotter(Visualization):
 
     @on_trait_change('scene.activated')
     def update_plot(self):
+        """ Called after Mayavi window has been initialized, so 3D scene is ready to be graphed. """
         model = self.model
         # noinspection PyProtectedMember
         self.scene.scene_editor._tool_bar.setVisible(False)
@@ -323,22 +329,27 @@ class Plotter(Visualization):
         self.reset_view()
 
     def reset_view(self):
+        """ Puts 3D camera back in default position. """
         self.scene.mlab.view(azimuth=315, elevation=83, distance=self.model.volume_radius * 6, focalpoint=(0, 0, 20))
 
     def save_view_to_file(self, filename):
         self.scene.mlab.savefig(filename)
 
     def show_axes(self, state):
+        """ Shows/hides 3D axis legend on the window. """
         self.axes.visible = state
 
     def get_camera(self):
         return self.scene.camera
 
     def update_point_detail(self, az, points):
+        """ Called when view selections are changed, and associated azimuth and sample/burst points need to
+        be updated on next scene refresh. """
         self.selected_az = az
         self.radius_points = points
 
     def set_av_callouts_visible(self, is_visible):
+        """ Show/hide component AV callouts """
         for c in self.av_callouts:
             c.visible = is_visible
 

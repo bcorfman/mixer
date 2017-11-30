@@ -40,6 +40,7 @@ class ParamController:
         app.aboutToQuit.connect(self.about_to_quit)
 
     def _populate_list_box(self):
+        """ Parse case names from output file list and use them to fill Case list box."""
         cases = set((x.rsplit('-', 2)[0].rsplit('_', 2)[0] for x in self.out_files))
         self.dlg.lstCase.clear()
         if cases:
@@ -49,6 +50,7 @@ class ParamController:
         self.dlg.cboBurstHeight.clear()
 
     def _populate_combo_boxes(self, case_prefix):
+        """ Parses the terminal conditions from the case name, and use them to fill in combos."""
         dlg = self.dlg
         self.stop_events = True
         aofs = set((x.rsplit('-', 2)[0].rsplit('_', 2)[2] for x in self.out_files if x.startswith(case_prefix)))
@@ -74,6 +76,7 @@ class ParamController:
         self.stop_events = False
 
     def on_btn_choose(self):
+        """ Event handler for directory chooser. """
         # noinspection PyTypeChecker
         d = QFileDialog.getExistingDirectory(None, 'Open Directory', self.start_dir,
                                              QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
@@ -85,13 +88,6 @@ class ParamController:
             self.out_files = [os.path.splitext(x)[0] for x in os.listdir(d) if x.endswith('.out')]
             self._populate_list_box()
             QApplication.restoreOverrideCursor()
-
-    # TODO: How to do this effectively -- there are multiple links between objects
-    # TODO: to cleanup before they will get GC'd.
-    # noinspection SpellCheckingInspection
-    def remove_controller(self, ctlr):
-        self.controllers.remove(ctlr)
-        del ctlr
 
     # noinspection PyUnusedLocal
     def on_case_item_clicked(self, item):
@@ -106,6 +102,7 @@ class ParamController:
 
     # noinspection PyUnusedLocal
     def on_dialog_changed(self, idx):
+        """ Fires when any of the terminal conditions combo boxes are changed. """
         if self.stop_events:
             return
         file_prefix = self._get_file_match()
@@ -115,6 +112,9 @@ class ParamController:
         self.ini_parser.write_ini_file()
 
     def on_btn_display(self):
+        """ Shows the chosen 3D scene. """
+        # TODO: Showing the hourglass here doesn't work since the parsing isn't in a separate thread and hangs
+        # TODO: ... up the GUI.
         QApplication.setOverrideCursor(Qt.WaitCursor)
         file_prefix = self._get_file_match()
         plotter_win = load_ui_widget('mayavi_win.ui')
@@ -125,9 +125,11 @@ class ParamController:
         QApplication.restoreOverrideCursor()
 
     def about_to_quit(self):
+        """ Fires when the app is about to end, and writes out the user preferences to an .ini file. """
         self.ini_parser.write_ini_file()
 
     def _get_file_match(self):
+        """ Returns which file in the chosen directory matches the selected case name and terminal conditions."""
         dlg = self.dlg
         case = dlg.lstCase.currentItem()
         aof = dlg.cboAOF.currentText()
@@ -141,6 +143,7 @@ class ParamController:
         return file_lst[0] if len(file_lst) == 1 else ''
 
     def _update_model(self, file_prefix):
+        """ Parses the files associated with a chosen case. Reports any parsing errors at the bottom of the dialog. """
         dlg = self.dlg
         QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
