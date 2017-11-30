@@ -1,15 +1,6 @@
 import sys
 import unittest
 import math
-from tvtk.common import is_old_pipeline
-
-
-def configure_port_input_connection(obj, port, data):
-    """ Configure the input data for vtk pipeline object obj at port."""
-    if is_old_pipeline():
-        obj.set_input_connection(port, data.output_port)
-    else:
-        obj.set_input_data(port, data.output)
 
 
 def rotate_pt_around_yz_axes(x, y, z, aof, attack_az):
@@ -58,30 +49,6 @@ def apply_surfaces_offset(surfaces, offset):
              [x4 + ox, y4 + oy, z4 + oz]] for ((x1, y1, z1), (x2, y2, z2), (x3, y3, z3), (x4, y4, z4)) in surfaces]
 
 
-def apply_surface_rotation(surfaces, aof, azimuth):
-    return [rotate_pt_around_yz_axes(x, y, z, aof, azimuth) for x, y, z in surfaces]
-
-
-def delta(vec, elem):
-    """
-    :param vec: list of values
-    :param elem: value being measured between
-    :return: list of delta and index pairs
-    """
-    return [(abs(elem-item), i) for i, item in enumerate(vec)]
-
-
-def distance_between(vec1, vec2):
-    """
-    :param vec1: list of (x1,y1,z1) values
-    :param vec2: list of (x2,y2,z2) values
-    :return: list of (abs(x1-x2), abs(y1-y2), abs(z1-z2)) values
-    """
-    if len(vec1) != len(vec2):
-        raise IndexError("vec1 and vec2 don't have the same number of elements")
-    return [math.hypot(abs(vec1[i][0] - vec2[i][0]), abs(vec1[i][1] - vec2[i][1])) for i, _ in enumerate(vec1)]
-
-
 def measure_between(vec):
     """
     :param vec: list of N coordinates
@@ -113,15 +80,6 @@ def geometric_center(surfaces):
         max_z = max(z, max_z)
         min_z = min(z, min_z)
     return (max_x - min_x) / 2.0, (max_y - min_y) / 2.0, (max_z - min_z) / 2.0
-
-
-def near_zero(num, epsilon=0.01):
-    """
-    :param num: a number (float or integer)
-    :param epsilon: allowable difference between num and zero.
-    :return: True/False value indicating whether num is in tolerance.
-    """
-    return abs(num) <= epsilon
 
 
 class TestUtil(unittest.TestCase):
