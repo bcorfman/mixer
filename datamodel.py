@@ -61,6 +61,7 @@ class DataModel(object):
         self.burst_loc = None
 
     def read_and_transform_all_files(self, out_file):
+        # TODO: Parse the .out file and extract the av, surfaces
         av_file, srf_file, mtx_file, kill_file, dtl_file = Output(self).read(out_file)
         if av_file is None:
             raise IOError("Case didn't complete.")
@@ -85,24 +86,25 @@ class DataModel(object):
         self.find_closest_az_and_el_indices()
 
     def transform_blast_volumes(self, kill_ids):
+        """ Keep only the blast AVs that match with the frag components listed in the selected kill. """
         if kill_ids:
             self.blast_ids.intersection_update(kill_ids)
             self.blast_ids.difference_update(self.invuln_ids)
 
     def transform_direct_hit_components(self, kill_ids):
+        """ Keep only the direct hit AVs that match with the frag components listed in the selected kill. """
         if kill_ids:
             self.dh_ids.intersection_update(kill_ids)
             self.dh_ids.difference_update(self.invuln_ids)
 
     def transform_frag_components(self, kill_ids):
+        """ Keep only the fragment AVs that match with the frag components listed in the selected kill. """
         if kill_ids:
             self.frag_ids.intersection_update(kill_ids)
             self.frag_ids.difference_update(self.invuln_ids)
 
     def transform_surfaces(self):
-        """
-        Calculate a volume radius and geometric center for the target surfaces.
-        """
+        """ Calculate a volume radius and geometric center for the target surfaces. """
         self.surfaces = np.array(self.surfaces)
         self.volume_radius = max(self.srf_min_x, self.srf_max_x, self.srf_min_y, self.srf_max_y)
         for r1, r2, r3, z1, z2 in self.blast_vol.values():
@@ -112,8 +114,9 @@ class DataModel(object):
         # Store the matrix extents in range & deflection for later display in the 3D scene.
         self.mtx_extent_range = (self.gridlines_range[0], self.gridlines_range[-1])
         self.mtx_extent_defl = (self.gridlines_defl[0], self.gridlines_defl[-1])
-        # Flip gridlines in range to match Mayavi's Y axis direction.
+        # Flip gridlines to do the 180 degree matrix rotation from munition-centered to target-centered.
         self.gridlines_range = [-i for i in self.gridlines_range]
+        self.gridlines_defl = [-i for i in self.gridlines_defl]
         # Shift gridlines by applying matrix offset and target center extracted from .out file.
         # Otherwise, would have to apply the shift to the target/obstacle surfaces, AVs, blast volumes, etc.
         self.gridlines_range = util.apply_list_offset(self.gridlines_range, self.offset_range + self.tgt_center[0])

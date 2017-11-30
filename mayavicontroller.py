@@ -18,7 +18,11 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
         self.extent = None
 
     def on_right_button_release(self, obj, eventType):
-        # A fast hardware property picker that returns world coordinates.
+        """ Handles cell PK display. """
+        # A fast hardware property picker that returns world coordinates. This was the only way I could get
+        # cell picking to work correctly. If I used the default cell picker in Mayavi, it wouldn't get a hit
+        # as I rotated the view closer to 90 degrees around the Z axis. vtkPropPicker works fast, and I can
+        # change the world coordinates to cell coordinates fairly easily.
         picker = vtk.vtkPropPicker()
         click_pos = obj.GetInteractor().GetEventPosition()
         renderer = obj.GetCurrentRenderer()
@@ -51,11 +55,11 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
     def get_cell_info(self, selection_point):
         defl = selection_point[1]
         rng = selection_point[0]
-        defl_index = None
         gridlines_defl = self.model.gridlines_defl
         gridlines_range = self.model.gridlines_range
+        defl_index = None
         for i in range(len(gridlines_defl) - 1):
-            if gridlines_defl[i] <= defl <= gridlines_defl[i+1]:
+            if gridlines_defl[i] >= defl >= gridlines_defl[i+1]:
                 defl_index = i
                 break
         rng_index = None
@@ -86,7 +90,6 @@ class MayaviController:
         # set up window controls and events
         view.rdoBurst.setChecked(True)
         self.set_window_events(view)
-
         if model.az_averaging and model.dtl_file is not None:
             self.setup_detailed_output_frames(model, view)
         elif model.dtl_file is not None:
@@ -106,6 +109,8 @@ class MayaviController:
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
 
+        # here the CustomInteractor handles right-click functionality via low-level VTK. The only way
+        # I could get cell picking to work correctly was with
         self.interactor = CustomInteractor(model, view, plotter)
         fig = self.plotter.scene.mayavi_scene
         fig.scene.interactor.interactor_style = self.interactor
@@ -129,14 +134,14 @@ class MayaviController:
                     self.plotter.access_obj.hide()
 
                     # Move the outline to the data point.
-                    # Add an outline to show the selected point and center it on the first
-                    # data point.
+                    # Add an outline and center it on the data point.
                     self.update_point_details(pid)
 
         picker = fig.on_mouse_pick(picker_callback)
         picker.tolerance = 0.005  # Decrease tolerance, so that we can more easily select a precise point
 
     def update_point_details(self, pid):
+        """ Highlight the burstpoint associated with the pid (point id). """
         model = self.model
         view = self.view
         pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
@@ -147,7 +152,6 @@ class MayaviController:
         pb.display(pid, extent, azim, model.aof, model.frag_ids, model.frag_zones)
         self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
 
-    # TODO: revisit access for this -- why am I grabbing the az from plotter for instance
     def print_point_details(self, pid, x, y, z):
         model = self.model
         if self.view.rdoSample.isChecked():
@@ -180,6 +184,7 @@ class MayaviController:
         self.view.txtInfo.setPlainText(output)
 
     def set_window_events(self, view):
+        """ Set up GUI window to handle relevant events. """
         view.closeEvent = self.closeEvent
         view.rdoSample.clicked.connect(self.on_rdo_sample)
         view.rdoBurst.clicked.connect(self.on_rdo_burst)
@@ -190,6 +195,9 @@ class MayaviController:
         view.chkCompNames.clicked.connect(self.on_chk_compnames_clicked)
 
     def setup_detailed_output_frames(self, model, view):
+        """ When JMAE azimuth averaging mode is used, the GUI will display a radio button for each
+         of the azimuths that can be selected when viewing the burstpoints. Each of the radio buttons
+         has an event that is fired when the azimuth is changed. """
         layout = view.frmAzimuth.layout()
         label_text = 'View burst points at attack azimuth:'
         view.lblAzimuth = QtGui.QLabel(label_text, view.frmAzimuth)
@@ -204,6 +212,7 @@ class MayaviController:
                 rdo_button.setChecked(True)
 
     def on_btn_home_clicked(self):
+        """ Using the home button on the toolbar returns the user to the original 3D camera orientation."""
         self.plotter.reset_view()
 
     def on_btn_save_clicked(self):
@@ -213,14 +222,18 @@ class MayaviController:
             self.plotter.save_view_to_file(filename)
 
     def on_btn_axes_clicked(self):
+        """ Shows the X, Y, Z axes in the bottom left corner of the window for reference. """
         self.plotter.show_axes(self.view.btnAxes.isChecked())
 
     def on_btn_clear_clicked(self):
+        """ Clears any selected point/cell and hides any text displayed in the Info window. """
         self.plotter.access_obj.hide()
         self.view.txtInfo.setPlainText("")
 
     # noinspection PyUnusedLocal
     def on_rdo_azimuth_clicked(self, button):
+        """ Hide any burstpoint or cell selection. If a burstpoint was already selected before, then reselect it and
+        shift the frag zones to the new azimuth. """
         self.view.txtInfo.setPlainText("")
         self.update_radius_params()
         obj = self.plotter.access_obj
@@ -230,6 +243,7 @@ class MayaviController:
             self.update_point_details(self.plotter.pid)
 
     def on_rdo_sample(self):
+        """ Hide any burstpoint or cell selection and disable the azimuth buttons. """
         self.view.txtInfo.setPlainText("")
         if self.model.az_averaging and self.model.dtl_file is not None:
             self.view.lblAzimuth.setEnabled(False)
@@ -240,6 +254,7 @@ class MayaviController:
         obj.hide()
 
     def on_rdo_burst(self):
+        """ Shift the points to the new azimuth, but hide any burstpoint or cell selection. """
         self.view.txtInfo.setPlainText("")
         if self.model.az_averaging and self.model.dtl_file is not None:
             self.view.lblAzimuth.setEnabled(True)
@@ -250,20 +265,21 @@ class MayaviController:
         obj.hide()
 
     def on_chk_compnames_clicked(self):
+        # show/hide the component callouts over the frag AV components.
         self.plotter.set_av_callouts_visible(self.view.chkCompNames.isChecked())
         self.plotter.scene.render()
         # self.view.update()
 
     def _set_lbl_azimuth_text(self):
         if self.view.frmAzimuth.isVisible():
-            point_type = 'sample' if self.view.rdoSample.isChecked() else 'burst'
-            label_text = 'View {0} points at attack azimuth:'.format(point_type)
+            label_text = 'View burstpoints at attack azimuth:'
             self.view.lblAzimuth.setText(label_text)
 
     def closeEvent(self, event):
         self.mayavi_widget.deleteLater()
 
     def update_radius_params(self):
+        """ Update plotter object with newly selected azimuth and sample/burst points for display."""
         model = self.model
         view = self.view
         points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
