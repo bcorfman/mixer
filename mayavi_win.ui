@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>geometry.ico</normaloff>geometry.ico</iconset>
+  </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0" alignment="Qt::AlignLeft">
     <widget class="QWidget" name="widget" native="true">
@@ -25,7 +29,7 @@
      <property name="maximumSize">
       <size>
        <width>16777215</width>
-       <height>32</height>
+       <height>34</height>
       </size>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout">
@@ -34,11 +38,20 @@
       </property>
       <item>
        <widget class="QPushButton" name="btnHome">
+        <property name="minimumSize">
+         <size>
+          <width>24</width>
+          <height>24</height>
+         </size>
+        </property>
         <property name="maximumSize">
          <size>
           <width>18</width>
-          <height>18</height>
+          <height>24</height>
          </size>
+        </property>
+        <property name="autoFillBackground">
+         <bool>true</bool>
         </property>
         <property name="text">
          <string/>
@@ -47,15 +60,56 @@
          <iconset>
           <normaloff>house_16xLG.png</normaloff>house_16xLG.png</iconset>
         </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnTop">
+        <property name="minimumSize">
+         <size>
+          <width>24</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>18</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="autoFillBackground">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>arrow_Up_16xLG.png</normaloff>arrow_Up_16xLG.png</iconset>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="btnSave">
+        <property name="minimumSize">
+         <size>
+          <width>24</width>
+          <height>24</height>
+         </size>
+        </property>
         <property name="maximumSize">
          <size>
           <width>18</width>
-          <height>18</height>
+          <height>24</height>
          </size>
+        </property>
+        <property name="autoFillBackground">
+         <bool>true</bool>
         </property>
         <property name="text">
          <string/>
@@ -64,15 +118,27 @@
          <iconset>
           <normaloff>save_16xLG.png</normaloff>save_16xLG.png</iconset>
         </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>
        <widget class="QPushButton" name="btnAxes">
+        <property name="minimumSize">
+         <size>
+          <width>24</width>
+          <height>24</height>
+         </size>
+        </property>
         <property name="maximumSize">
          <size>
           <width>16</width>
-          <height>16777215</height>
+          <height>24</height>
          </size>
+        </property>
+        <property name="autoFillBackground">
+         <bool>true</bool>
         </property>
         <property name="text">
          <string/>
@@ -82,6 +148,9 @@
           <normaloff>Dimension_16xLG.png</normaloff>Dimension_16xLG.png</iconset>
         </property>
         <property name="checkable">
+         <bool>true</bool>
+        </property>
+        <property name="flat">
          <bool>true</bool>
         </property>
        </widget>
@@ -105,7 +174,7 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
+   <item row="1" column="2">
     <widget class="QFrame" name="frmAzimuth">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -122,7 +191,7 @@
      <layout class="QGridLayout" name="gridLayout_3" rowstretch="0"/>
     </widget>
    </item>
-   <item row="2" column="1">
+   <item row="2" column="2">
     <widget class="QFrame" name="frmDetail">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -244,6 +313,19 @@
       </item>
      </layout>
     </widget>
+   </item>
+   <item row="0" column="1">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>
