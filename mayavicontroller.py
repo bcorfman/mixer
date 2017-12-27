@@ -190,6 +190,7 @@ class MayaviController:
         view.rdoBurst.clicked.connect(self.on_rdo_burst)
         view.btnSave.clicked.connect(self.on_btn_save_clicked)
         view.btnHome.clicked.connect(self.on_btn_home_clicked)
+        view.btnTop.clicked.connect(self.on_btn_top_clicked)
         view.btnAxes.clicked.connect(self.on_btn_axes_clicked)
         view.btnClearSel.clicked.connect(self.on_btn_clear_clicked)
         view.chkCompNames.clicked.connect(self.on_chk_compnames_clicked)
@@ -214,6 +215,12 @@ class MayaviController:
     def on_btn_home_clicked(self):
         """ Using the home button on the toolbar returns the user to the original 3D camera orientation."""
         self.plotter.reset_view()
+
+    def on_btn_top_clicked(self):
+        """ Using the top (up arrow) button on the toolbar orients the 3D view above the matrix, looking down.
+        JJS requested this feature along with labeled gridline coordinates, but in this view the labels are too
+        cluttered and small to see, so I didn't add those in."""
+        self.plotter.top_view()
 
     def on_btn_save_clicked(self):
         filename = QFileDialog.getSaveFileName(self.view, 'Save Figure', self.working_dir,

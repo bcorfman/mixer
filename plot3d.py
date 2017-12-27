@@ -332,6 +332,9 @@ class Plotter(Visualization):
         """ Puts 3D camera back in default position. """
         self.scene.mlab.view(azimuth=315, elevation=83, distance=self.model.volume_radius * 6, focalpoint=(0, 0, 20))
 
+    def top_view(self):
+        self.scene.mlab.view(azimuth=270, elevation=0, distance=self.model.volume_radius * 12, focalpoint=(0, 0, 20))
+
     def save_view_to_file(self, filename):
         self.scene.mlab.savefig(filename)
 
