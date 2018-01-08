@@ -66,6 +66,7 @@ class Plotter(Visualization):
         self.radius_points = None
         self.pid = None
         self.rgrid = None
+        self.wgrid = None
         self.rgrid_array = None
         self.mtx_callout = None
         self.mun_callout = None
@@ -125,12 +126,23 @@ class Plotter(Visualization):
         self.rgrid.cell_data.scalars = model.pks.T.ravel()
         self.rgrid.cell_data.scalars.name = 'pks'
         self.rgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
-
         p = tvtk.Property(color=(0, 0, 0))  # color only matters if we are using wireframe, but I left it in for ref.
 
         # this method puts the surface in the Mayavi pipeline so the user can change it.
         surf = self.scene.mlab.pipeline.surface(self.rgrid, name='matrix')
         surf.actor.actor.property = p
+        surf.actor.update_data()
+
+        wgrid_height = full(1, model.burst_height+0.1)
+        self.wgrid = tvtk.RectilinearGrid(x_coordinates=model.gridlines_range, y_coordinates=model.gridlines_defl,
+                                          z_coordinates=wgrid_height, dimensions=(x_dim, y_dim, z_dim))
+        #self.wgrid.cell_data.scalars = full(len(model.pks.T.ravel()), 0.0)
+        #self.wgrid.cell_data.scalars = model.pks.T.ravel()
+        #self.wgrid.cell_data.scalars.name = 'pks'
+        #self.wgrid.cell_data.update()  # refreshes the grid now that a new array has been added.
+        surf = self.scene.mlab.pipeline.surface(self.wgrid, name='gridlines')
+        wf = tvtk.Property(representation='wireframe', color=(0.5, 0.5, 0.5))
+        surf.actor.actor.property = wf
         surf.actor.update_data()
 
         # give PK colorbar a range between 0 and 1. The default is to use the min/max values in the array,
