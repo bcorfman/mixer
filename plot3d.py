@@ -348,7 +348,7 @@ class Plotter(Visualization):
         self.scene.mlab.view(azimuth=270, elevation=0, distance=self.model.volume_radius * 12, focalpoint=(0, 0, 20))
 
     def save_view_to_file(self, filename):
-        self.scene.mlab.savefig(filename)
+        self.scene.mlab.savefig(filename, figure=self.scene.mayavi_scene)
 
     def show_axes(self, state):
         """ Shows/hides 3D axis legend on the window. """
