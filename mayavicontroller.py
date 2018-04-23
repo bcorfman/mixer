@@ -10,6 +10,7 @@ from access import CellBounds, PointBounds
 # I use the custom interactor here because Mayavi has no built-in prop picker.
 class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
     def __init__(self, model, view, plotter):
+        vtk.vtkInteractorStyleTrackballCamera.__init__(self)
         self.model = model
         self.view = view
         self.plotter = plotter
@@ -17,7 +18,8 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
         self.cb = self.plotter.access_obj = CellBounds(plotter)
         self.extent = None
 
-    def on_right_button_release(self, obj, eventType):
+    # noinspection PyUnusedLocal
+    def on_right_button_release(self, obj, event_type):
         """ Handles cell PK display. """
         # A fast hardware property picker that returns world coordinates. This was the only way I could get
         # cell picking to work correctly. If I used the default cell picker in Mayavi, it wouldn't get a hit
@@ -79,6 +81,7 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
 
 # noinspection PyProtectedMember
 class MayaviController:
+    # noinspection PyArgumentList
     def __init__(self, model, view, working_dir):
         self.model = model
         self.view = view
@@ -282,6 +285,7 @@ class MayaviController:
             label_text = 'View burstpoints at attack azimuth:'
             self.view.lblAzimuth.setText(label_text)
 
+    # noinspection PyUnusedLocal
     def closeEvent(self, event):
         self.mayavi_widget.deleteLater()
 
@@ -293,4 +297,3 @@ class MayaviController:
         az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         self.plotter.update_point_detail(az, points)
         self.plotter.plot_detail()
-
