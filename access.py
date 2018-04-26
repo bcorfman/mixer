@@ -144,7 +144,7 @@ class CellBounds(AccessObj):
         x_mid = (x_max - x_min) / 2.0 + x_min
         y_mid = (y_max - y_min) / 2.0 + y_min
         z_mid = (z_max - z_min) / 2.0 + z_min
-        self.callout.position = (y_mid, x_mid, z_mid + 5)
+        self.callout.position = (y_mid, x_mid, z_mid + 2)
         txt = "%4.2f" % pk
         self.callout.text = txt
         self.callout.visible = True
