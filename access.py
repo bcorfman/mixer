@@ -28,7 +28,16 @@ class PointBounds(AccessObj):
         self.zones = []
 
     def display(self, pid, extent, mun_az, mun_aof, comp_ids, frag_zones):
-        """ Outlines the burstpoint on the 3D display and displays associated frag zones that intersect with the
+        """ 
+        :param pid: pointID
+        :param extent: 3D bounding coordinates, used as a highlight for chosen matrix cell.
+        :param mun_az: munition azimuth
+        :param mun_aof: munition angle of fall
+        :param comp_ids: component IDs (all blast, direct hit & frag IDs combined in one list)
+        :param frag_zones: dictionary of ZDATA fragment zones ordered by pointID, azimuth and component
+        :return: None
+        """""" 
+        Outlines the burstpoint on the 3D display and displays associated frag zones that intersect with the
         frag AV components. """
         # Hides the currently selected object first.
         if self.plotter.access_obj is not None:
@@ -120,7 +129,12 @@ class CellBounds(AccessObj):
         self.callout.visible = False
 
     def display(self, extent, pk):
-        """ Outlines the selected cell on the 3D display and displays the cell PK value in a callout. """
+        """
+        :param extent: 3D bounding coordinates, used as a highlight for chosen matrix cell.
+        :param pk: Cell probability of kill value
+        :return: None
+
+        Outlines the selected cell on the 3D display and displays the cell PK value in a callout. """
         if self.plotter.access_obj is not None:
             self.plotter.access_obj.hide()
         x_min, x_max, y_min, y_max, z_min, z_max = extent

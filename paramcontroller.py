@@ -75,6 +75,7 @@ class ParamController:
         dlg.cboPkSurface.addItems(['Matrix'])
         self.stop_events = False
 
+    # noinspection PyArgumentList
     def on_btn_choose(self):
         """ Event handler for directory chooser. """
         # noinspection PyTypeChecker
@@ -91,6 +92,7 @@ class ParamController:
 
     # noinspection PyUnusedLocal
     def on_case_item_clicked(self, item):
+        """ Updates the underlying DataModel to reflect the selected case. """
         if self.stop_events:
             return False
         self._populate_combo_boxes(item.text())
@@ -102,7 +104,8 @@ class ParamController:
 
     # noinspection PyUnusedLocal
     def on_dialog_changed(self, idx):
-        """ Fires when any of the terminal conditions combo boxes are changed. """
+        """ Fires when any of the terminal conditions combo boxes are changed and updates the underlying DataModel
+        and the user .ini file to reflect the changes. """
         if self.stop_events:
             return
         file_prefix = self._get_file_match()
@@ -111,18 +114,20 @@ class ParamController:
         self._update_model(file_prefix)
         self.ini_parser.write_ini_file()
 
+    # noinspection PyArgumentList
     def on_btn_display(self):
         """ Shows the chosen 3D scene. """
         # TODO: Showing the hourglass here doesn't work since the parsing isn't in a separate thread and hangs
-        # TODO: ... up the GUI.
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        # TODO: up the GUI.
+        # noinspection PyArgumentList
+        QApplication.setOverrideCursor(Qt.WaitCursor)  # show hourglass cursor
         file_prefix = self._get_file_match()
         plotter_win = load_ui_widget('mayavi_win.ui')
         plotter_win.setWindowTitle(file_prefix)
         controller = MayaviController(self.model, plotter_win, self.start_dir)
         self.controllers.append(controller)
         plotter_win.show()
-        QApplication.restoreOverrideCursor()
+        QApplication.restoreOverrideCursor()  # show standard arrow cursor
 
     def about_to_quit(self):
         """ Fires when the app is about to end, and writes out the user preferences to an .ini file. """
@@ -142,17 +147,18 @@ class ParamController:
         file_lst = [f for f in self.out_files if fnmatch(f, prefix + '*' + suffix)]
         return file_lst[0] if len(file_lst) == 1 else ''
 
+    # noinspection PyArgumentList
     def _update_model(self, file_prefix):
         """ Parses the files associated with a chosen case. Reports any parsing errors at the bottom of the dialog. """
         dlg = self.dlg
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.setOverrideCursor(Qt.WaitCursor)  # show hourglass cursor
         try:
             self.model = DataModel()
-            self.model.read_and_transform_all_files(self.ini_parser.dir + os.sep + file_prefix + '.out')
+            self.model.read_and_transform_all_files(self.ini_parser.dir + os.path.sep + file_prefix + '.out')
             dlg.lblErrorReport.setText("")
             dlg.btnDisplay.setEnabled(True)
         except Exception as e:
             dlg.lblErrorReport.setText(str(e))
             dlg.btnDisplay.setEnabled(False)
-        QApplication.restoreOverrideCursor()
+        QApplication.restoreOverrideCursor()   # show standard arrow cursor
 

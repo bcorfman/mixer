@@ -70,8 +70,10 @@ def geometric_center(surfaces):
     :param surfaces: list of (X, Y, Z) points for a quadrilateral
     :return: X, Y, Z geometric center of all surfaces
     """
-    min_x, min_y, min_z = sys.maxint, sys.maxint, sys.maxint
-    max_x, max_y, max_z = -sys.maxint, -sys.maxint, -sys.maxint
+    # min will always be smaller than the max possible
+    min_x, min_y, min_z = sys.maxsize, sys.maxsize, sys.maxsize
+    # max will always be smaller than the min possible
+    max_x, max_y, max_z = -sys.maxsize+1, -sys.maxsize+1, -sys.maxsize+1
     for x, y, z in surfaces:
         max_x = max(x, max_x)
         min_x = min(x, min_x)

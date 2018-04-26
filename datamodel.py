@@ -1,5 +1,5 @@
-from os.path import exists
 from parselib import AV, Surfaces, Output, Matrix, Kill, Detail
+import os
 import numpy as np
 import util
 
@@ -67,10 +67,10 @@ class DataModel(object):
         AV(self).read(av_file)
         Surfaces(self).read(srf_file)
         Kill(self).read(kill_file)
-        if exists(mtx_file):
+        if os.path.exists(mtx_file):
             Matrix(self).read(mtx_file)
             self.transform_matrix()
-        if exists(dtl_file):
+        if os.path.exists(dtl_file):
             detail = Detail(self)
             if detail.validate(dtl_file):
                 detail.read(dtl_file)

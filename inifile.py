@@ -7,6 +7,9 @@ __author__ = 'brandon.corfman'
 # noinspection SpellCheckingInspection,SpellCheckingInspection
 class IniParser(object):
     def __init__(self, dlg):
+        """ dlg: Instance of QDialog class
+            return: None
+        """
         self.dlg = dlg
         self.dir = None
         self.x, self.y, self.width, self.height = None, None, None, None
@@ -18,12 +21,13 @@ class IniParser(object):
         self.parser = ConfigParser()
 
     def read_ini_file(self):
-        ini_path = os.path.abspath(os.curdir) + os.sep + 'jmaeout.ini'
+        """ read user settings from .ini file, or create .ini if it doesn't exist already. """
+        ini_path = os.path.abspath(os.path.curdir) + os.path.sep + 'jmaeout.ini'
         if os.path.exists(ini_path):
             self.parser.read(ini_path)
             self.dir = self.parser.get('settings', 'directory')
             if not os.path.exists(self.dir):
-                self.dir = os.path.abspath(os.curdir)
+                self.dir = os.path.abspath(os.path.curdir)
             geometry = self.parser.get('settings', 'geometry').split(',')
             self.x, self.y = int(geometry[0]), int(geometry[1])
             self.width, self.height = int(geometry[2]), int(geometry[3])
@@ -33,11 +37,12 @@ class IniParser(object):
             self.burst_height = self.parser.get('settings', 'burst_height')
             self.pk_surface = self.parser.get('settings', 'pk_surface')
         else:
-            self.dir = os.path.abspath(os.curdir)
+            self.dir = os.path.abspath(os.path.curdir)
             self.write_ini_file()
 
     def write_ini_file(self):
-        ini_path = os.path.abspath(os.curdir) + os.sep + 'jmaeout.ini'
+        """ write user settings to .ini file: primarily dialog position & size, plus GUI selections. """
+        ini_path = os.path.abspath(os.path.curdir) + os.path.sep + 'jmaeout.ini'
         if not self.parser.has_section('settings'):
             self.parser.add_section('settings')
         self.parser.set('settings', 'directory', self.dir)

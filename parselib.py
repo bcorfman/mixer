@@ -1,6 +1,6 @@
 import sys
 import numpy as np
-from os.path import dirname, sep, splitext, basename, exists
+import os
 from collections import OrderedDict, defaultdict
 from const import CMPID, R1, R2, R3, Z1, Z2
 
@@ -17,6 +17,8 @@ class AVComp(object):
 class AV(object):
     """ AV file parser. """
     def __init__(self, model=None):
+        # The next five lines allow you to either pass in an external DataModel, in which case the AV object will
+        # assign to that model's variables, or if no model is specified, it will assign to its own variables instead.
         if model is None:
             self.model = self
         else:
@@ -28,7 +30,6 @@ class AV(object):
         model.x_avg_loc, model.y_avg_loc = 0.0, 0.0
         model.x_loc, model.y_loc, model.z_loc = 0.0, 0.0, 0.0
         model.num_tables = None
-        model.num_az = 0
         model.num_az, model.num_el, model.num_vl, model.num_ms = 0, 0, 0, 0
         model.azs = []
         model.els = []
@@ -40,6 +41,13 @@ class AV(object):
         model.pes = None
 
     def _read_array(self):
+        """
+        Reads a line from an open AV file in the following format:
+        num_items item_1 item_2 ... item_n
+        If num_items doesn't match the number of items on the line, a ValueError is raised.
+
+        :return: num_items, items
+        """
         line = self.avf.readline().strip()
         try:
             n, rest = line.split(None, 1)
@@ -53,6 +61,10 @@ class AV(object):
         return num_items, items
 
     def _read_av_header(self):
+        """
+        Reads an open AV file from the top, down to where the AV tables begin (after the mass array line.)
+        :return: None
+        """
         model = self.model
         self.avf.readline()  # skip past first header line
         self.avf.readline()  # skip past second header line
@@ -90,21 +102,30 @@ class AV(object):
         model.pes = [[[[[0.0 for _ in model.vls] for _ in model.mss] for _ in model.els] for _ in model.azs]
                      for _ in range(model.num_tables)]
 
-    def _read_av_tables(self, header_flag):  # TODO: This header_flag doesn't make any sense, consider making it an arg
+    def _read_av_tables(self, header_flag=True):
+        """:header_flag: controls whitespace parsing of table name. See comments below.
+        :return None"""
         model = self.model
         for icmp in range(model.num_tables):
             for iel in range(model.num_el):
+                # -90 and 90 are handled differently since they have only one azimuth.
                 polar_el = (float(model.els[iel]) == 90.0 or float(model.els[iel]) == -90.0)
                 for iaz in range(model.num_az):
                     line = self.avf.readline().strip()
                     if model.av_averaging == 1:  # by azimuth
+                        # each AV table header line is composed of "az el table_name", but table names can consist of
+                        # sentences with whitespace in between words. When header_flag is True, the entire rest of
+                        # the line is parsed as a single sentence. When False, only the first word is parsed.
                         if header_flag:
-                            tokens = line.split(None, 2)  # TODO: write explanation for this header_flag choice
+                            tokens = line.split(None, 2)  #
                         else:
                             tokens = line.split()
                         az, el = tokens[0], tokens[1]
                         model.table_names[icmp][iaz][iel] = tokens[2]
                     else:
+                        # each AV table header line is composed of "az el table_name", but table names can consist of
+                        # sentences with whitespace in between words. When header_flag is True, the entire rest of
+                        # the line is parsed as a single sentence. When False, only the first word is parsed.
                         if header_flag:
                             tokens = line.split(None, 1)
                         else:
@@ -157,6 +178,8 @@ class AV(object):
 class Surfaces(object):
     """ Surface file parser. """
     def __init__(self, model=None):
+        # The next five lines allow you to either pass in an external DataModel, in which case the AV object will
+        # assign to that model's variables, or if no model is specified, it will assign to its own variables instead.
         if model is None:
             self.model = self
         else:
@@ -201,7 +224,11 @@ class Surfaces(object):
 
 
 class Output(object):
+    """ The JMAE .out file holds filepaths to the other auxiliary files that we need to parse, plus it contains
+        a lot of the case variables needed as well."""
     def __init__(self, model=None):
+        # The next five lines allow you to either pass in an external DataModel, in which case the AV object will
+        # assign to that model's variables, or if no model is specified, it will assign to its own variables instead.
         if model is None:
             self.model = self
         else:
@@ -255,6 +282,7 @@ class Output(object):
     # noinspection PyUnusedLocal
     def _parse_direct_hit_components(self, line):
         model = self.model
+        # the direct hit component list starts after the SRFID header line.
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
@@ -264,6 +292,7 @@ class Output(object):
     # noinspection PyUnusedLocal
     def _parse_blast_components(self, line):
         model = self.model
+        # the blast component list starts after the CMPID header line.
         line = self.out.readline().strip()
         while line != '':
             tokens = line.split()
@@ -276,7 +305,7 @@ class Output(object):
             if not (r1 == 0.0 and r2 == 0.0 and r3 == 0.0 and z1 == 0.0 and z2 == 0.0):
                 model.blast_ids.add(idx)
                 model.blast_vol[idx] = [r1, r2, r3, z1, z2]
-            if r1 == 0.0 and r2 == 0.0 and z1 == 0.0:  # sphere
+            if r1 == 0.0 and r2 == 0.0 and z1 == 0.0:  # detecting a sphere volume
                 line = self.out.readline().strip()  # this line contains the extra "Sphere" field
                 if line == "":  # extra insurance in case there's a blank line; exit early
                     break
@@ -287,7 +316,7 @@ class Output(object):
         if 'NONE' in line:
             return  # no invulnerable components; leave set empty.
         line = self.out.readline().strip()
-        while line != '':
+        while line != '':  # a blank line indicates end of the list.
             tokens = line.split(':')
             if len(tokens) != 2:
                 raise IOError("Can't parse invulnerable components")
@@ -299,6 +328,8 @@ class Output(object):
 
     def _parse_kill_description(self, line):
         _, kill_desc = line.split(':')
+        # this next line trips an error if the kill description value has already been set.
+        # Any .out files with multiple matrices have multiple kill description lines.
         if self.model.kill_desc:
             raise ValueError('Cannot read multiple matrices in a single .mtx file')
         self.model.kill_desc = kill_desc.strip()
@@ -312,7 +343,7 @@ class Output(object):
         _, fn = line.split(':', 1)
         fn = fn.strip()
         if fn != "":
-            if exists(fn):
+            if os.path.exists(fn):
                 return fn
             else:
                 raise IOError(error_msg)
@@ -321,7 +352,7 @@ class Output(object):
         while True:
             line = self.out.readline().strip()
             if line != '':
-                if exists(line):
+                if os.path.exists(line):
                     return line
                 else:
                     raise IOError(error_msg)
@@ -361,7 +392,9 @@ class Output(object):
                         match[key](line)
                         break
         if self.case_completed:
-            file_path = dirname(out_file) + sep + splitext(basename(out_file))[0]
+            # The base filepath is the output directory + the out filename without the extension.
+            file_path = os.path.dirname(out_file) + os.path.sep + os.path.splitext(os.path.basename(out_file))[0]
+            # append the appropriate extension to the base filepath.
             mtx_file = file_path + '.mtx'
             dtl_file = file_path + '.dtl'
             return model.av_file, model.srf_file, mtx_file, model.kill_file, dtl_file
@@ -379,6 +412,8 @@ class KillNode(object):
 class Kill(object):
     """ Kill definition file parser. """
     def __init__(self, model=None):
+        # The next five lines allow you to either pass in an external DataModel, in which case the AV object will
+        # assign to that model's variables, or if no model is specified, it will assign to its own variables instead.
         if model is None:
             self.model = self
         else:
@@ -465,6 +500,8 @@ class Kill(object):
 class Matrix(object):
     """ Matrix file parser. """
     def __init__(self, model=None):
+        # The next five lines allow you to either pass in an external DataModel, in which case the AV object will
+        # assign to that model's variables, or if no model is specified, it will assign to its own variables instead.
         if model is None:
             self.model = self
         else:
@@ -511,6 +548,7 @@ class Matrix(object):
             line = self.mtx.readline().strip()
             model.gridlines_defl = [float(x) for x in line.split()]
             self.mtx.readline().strip()  # skip <matrix pks> header
+            # store the PKs in a 2D numpy array for speed.
             model.pks = np.zeros((model.cls_range, model.cls_defl))
             for r in range(model.cls_range):
                 line = self.mtx.readline().strip()
@@ -520,7 +558,8 @@ class Matrix(object):
 
 
 class Detail(object):
-    """ Detail file parser. This only parses the full detail file, i.e., burstpoint, component and frag detail."""
+    """ Detail file parser. This only parses the full detail file, i.e., burstpoint, component and frag detail.
+    Only that version of the file has all the information we need to show frag zones. """
     def __init__(self, model=None, az_averaging=None, attack_az=None, blast_ids=None, dh_ids=None):
         if model is None:
             self.model = self
@@ -578,11 +617,15 @@ class Detail(object):
         line = self.dtl.readline()
         tokens = line.split(':', 15)
         idx = int(tokens[0])
+        # Radial burstpoints steadily increase, so detecting any remedial points (with an index of 1) that follow the
+        # radial ones is easy. Remedial points junk up the display.
+        # TODO: The only case in which this fails to work is when there are only remedial points (rare), and only one
+        # TODO: gets parsed. Since there is no other apparent way to distinguish regular points and remedial ones,
+        # TODO: I'm not sure how to distinguish a remedial-point-only case looking at the indices only.
         if idx < self.bp_idx:
-            # Prevents any remedial points (index of 1) from being parsed,
-            # TODO: unless there are ONLY remedial points, in which case, it will parse only one.
             return False
         self.bp_idx = idx
+        # add a second azimuth index only after we first access the burstpoint index.
         if not model.sample_loc.get(idx):
             model.sample_loc[idx] = defaultdict(dict)
         if not model.burst_loc.get(idx):
@@ -632,6 +675,7 @@ class Detail(object):
         tokens = line.split(':', 15)
         idx = self.bp_idx
         cid = model.comp_num
+        # identify the correct token for component PK by looking at the DH, blast and frag IDs.
         if cid in model.dh_ids:
             model.comp_pk[idx][self.az][cid] = float(tokens[12])
         elif cid in model.blast_ids:

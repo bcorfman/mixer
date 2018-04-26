@@ -6,9 +6,9 @@ from plot3d import Plotter
 from access import CellBounds, PointBounds
 
 
-# Right-click functionality for PK callouts on the matrix grid.
-# I use the custom interactor here because Mayavi has no built-in prop picker.
 class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
+    """ Right-click functionality for PK callouts on the matrix grid.
+        I use the custom interactor here because Mayavi has no built-in prop picker. """
     def __init__(self, model, view, plotter):
         vtk.vtkInteractorStyleTrackballCamera.__init__(self)
         self.model = model
@@ -52,26 +52,32 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
 
         vtk.vtkInteractorStyleTrackballCamera.OnRightButtonUp(self)
 
-    # If the picked point falls inside matrix gridlines, this function will return the corresponding
-    # (PK, extent coordinates) of the grid cell. Outside of the grid cell, it will return (None, None).
     def get_cell_info(self, selection_point):
+        """
+        :param selection_point: (rng, defl) tuple indicating selected point on matrix
+        :return: None
+        If the picked point falls inside matrix gridlines, this function will return the corresponding
+           (PK, extent coordinates) of the grid cell. Outside of the grid cell, it will return (None, None). """
         defl = selection_point[1]
         rng = selection_point[0]
         gridlines_defl = self.model.gridlines_defl
         gridlines_range = self.model.gridlines_range
+        # find deflection index
         defl_index = None
         for i in range(len(gridlines_defl) - 1):
             if gridlines_defl[i] >= defl >= gridlines_defl[i+1]:
                 defl_index = i
                 break
+        # find range index
         rng_index = None
         for i in range(len(gridlines_range) - 1):
             if gridlines_range[i] >= rng >= gridlines_range[i+1]:
                 rng_index = i
                 break
         if defl_index is None or rng_index is None:
-            return None, None
+            return None, None  # out of bounds
         else:
+            # return PK and cell bounding box
             pk = self.model.pks[rng_index, defl_index]
             extent = (self.model.gridlines_defl[defl_index+1], self.model.gridlines_defl[defl_index],
                       self.model.gridlines_range[rng_index+1], self.model.gridlines_range[rng_index],
@@ -83,6 +89,11 @@ class CustomInteractor(vtk.vtkInteractorStyleTrackballCamera):
 class MayaviController:
     # noinspection PyArgumentList
     def __init__(self, model, view, working_dir):
+        """
+        :param model: Instance of DataModel class
+        :param view: Instance of QDialog class
+        :param working_dir: directory path string where JMAE output files are located
+        """
         self.model = model
         self.view = view
         self.working_dir = working_dir
@@ -96,10 +107,10 @@ class MayaviController:
         if model.az_averaging and model.dtl_file is not None:
             self.setup_detailed_output_frames(model, view)
         elif model.dtl_file is not None:
-            view.frmAzimuth.setVisible(False)
+            view.frmAzimuth.setVisible(False)  # hide azimuth selection frame
         else:
-            view.frmAzimuth.setVisible(False)
-            view.frmDetail.setVisible(False)
+            view.frmAzimuth.setVisible(False)  # hide azimuth selection frame
+            view.frmDetail.setVisible(False)   # hide detail frame
 
         # when this code is called, the sample points or burstpoints in the plotter are initialized only.
         # They cannot be drawn until the Mayavi widget is created, and the scene is activated (which fires
@@ -108,23 +119,25 @@ class MayaviController:
             points = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
             az = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
             self.plotter.update_point_detail(az, points)
+        # create the Mayavi widget and attach to the Qt grid layout at runtime, since the
+        # widget isn't part of Qt Designer.
         self.mayavi_widget = MayaviQWidget(plotter, view.frmMayavi)
         layout = QtGui.QGridLayout(view.frmMayavi)
         layout.addWidget(self.mayavi_widget, 1, 1)
 
         # here the CustomInteractor handles right-click functionality via low-level VTK. The only way
-        # I could get cell picking to work correctly was with
+        # I could get cell picking to work correctly. (See notes on CustomInteractor.on_right_button_release above.)
         self.interactor = CustomInteractor(model, view, plotter)
         fig = self.plotter.scene.mayavi_scene
         fig.scene.interactor.interactor_style = self.interactor
 
         def picker_callback(pick):
             """ This gets called when left button is clicked. """
-            # only allow a pick if the chosen actor is in the list of burstpoint (not sample point) objects
+            # only allow a pick if the chosen actor is in the list of burstpoint (not sample point) objects.
             if pick.actor in self.plotter.burstpoint_glyphs.actor.actors and view.rdoBurst.isChecked():
                 # Find which data point corresponds to the point picked:
                 # we have to account for the fact that each data point is
-                # represented by a glyph with several points
+                # represented by a glyph with several points.
                 point_id = pick.point_id // plotter.burstpoint_array.shape[0]
 
                 # If the no points have been selected, we have '-1'
@@ -150,9 +163,11 @@ class MayaviController:
         pts = model.get_sample_points() if view.rdoSample.isChecked() else model.get_burst_points()
         azim = view.buttonGroup.checkedId() if model.az_averaging else int(model.attack_az)
         x, y, z = pts[pid][azim][0], pts[pid][azim][1], pts[pid][azim][2]
+        # the point is highlighted on-screen with a bounding box
         extent = x - 0.5, x + 0.5, y - 0.5, y + 0.5, z - 0.5, z + 0.5
         pb = self.plotter.access_obj = PointBounds(self.plotter)
         pb.display(pid, extent, azim, model.aof, model.frag_ids, model.frag_zones)
+        # display the details about the point (extracted from the .dtl file) in the Info box.
         self.print_point_details(pid, pb.x_mid, pb.y_mid, pb.z_mid)
 
     def print_point_details(self, pid, x, y, z):
@@ -163,6 +178,8 @@ class MayaviController:
             output = 'Burst point {0} ({1:.2f}, {2:.2f}, {3:.2f})\n'.format(pid, x, y, z)
 
         az = self.plotter.selected_az
+        # put all the different IDs (direct hit, blast and frag) into a single, sorted component ID list
+        # to iterate over them.
         comp_ids = sorted(model.dh_ids.union(model.blast_ids).union(model.frag_ids))
         for cid in comp_ids:
             if cid in model.dh_ids:
@@ -220,7 +237,7 @@ class MayaviController:
         self.plotter.reset_view()
 
     def on_btn_top_clicked(self):
-        """ Using the top (up arrow) button on the toolbar orients the 3D view above the matrix, looking down.
+        """ Using the top (up arrow) button on the toolbar orients the 3D view above the matrix overhead, looking down.
         JJS requested this feature along with labeled gridline coordinates, but in this view the labels are too
         cluttered and small to see, so I didn't add those in."""
         self.plotter.top_view()
@@ -275,7 +292,7 @@ class MayaviController:
         obj.hide()
 
     def on_chk_compnames_clicked(self):
-        # show/hide the component callouts over the frag AV components.
+        """ show/hide the component callouts over the frag AV components. """
         self.plotter.set_av_callouts_visible(self.view.chkCompNames.isChecked())
         self.plotter.scene.render()
         # self.view.update()
@@ -287,6 +304,8 @@ class MayaviController:
 
     # noinspection PyUnusedLocal
     def closeEvent(self, event):
+        """ deleteLater() causes the event loop to delete the widget after all pending events have been delivered to it
+        and prevents errors on close. """
         self.mayavi_widget.deleteLater()
 
     def update_radius_params(self):
